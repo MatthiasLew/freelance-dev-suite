@@ -1,0 +1,83 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "freelance-dev-suite"
+version = "0.1.0"
+description = "CLI toolkit for managing freelance development jobs — from intake and estimation through implementation to client handoff."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Mateusz Lewandowski" }]
+keywords = ["freelance", "cli", "estimation", "project-management", "developer-tools"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business",
+  "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+  "click>=8.1",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+ai-dev = [
+  "ai-dev-cli-tools>=1.0",
+]
+dev = [
+  "build>=1.2",
+  "coverage[toml]>=7.6",
+  "mypy>=1.11",
+  "pytest>=8.3",
+  "ruff>=0.6",
+]
+
+[project.scripts]
+freelance = "freelance_cli.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/freelance_cli", "packages"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.git",
+  "/.mypy_cache",
+  "/.pytest_cache",
+  "/.ruff_cache",
+  "/.venv",
+  "/build",
+  "/dist",
+  "**/__pycache__",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-q"
+
+[tool.coverage.run]
+branch = true
+source = ["freelance_cli"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
