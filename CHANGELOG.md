@@ -4,6 +4,9 @@
 
 ### Added
 
+- Client communication module (`packages/communication`) with `MessageGenerator` creating tailored client messages across all project lifecycle stages (`intake`, `quote`, `update`, `demo`, `delivery`, `reminder`, `scope-notice`) with multi-language support (Polish and English).
+- Dynamic AI model pricing management and YAML persistence in `packages/ai_cost/pricing.py`.
+- CLI commands `freelance message <JOB-ID> <STAGE>` and `freelance pricing`.
 - Portfolio generator module (`packages/portfolio`) creating client case studies with optional anonymization and export to `portfolio/<JOB-ID>-case-study.md`.
 - Estimator calibration & heuristic learning module (`packages/estimator/calibration.py`) computing historical quote-vs-actual multipliers and variance analysis.
 - GitHub Actions continuous integration pipeline (`.github/workflows/ci.yml`) validating Python 3.11, 3.12, and 3.13 with Ruff, Mypy, and Pytest coverage.

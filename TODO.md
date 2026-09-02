@@ -10,7 +10,7 @@
 
 ### MVP hardening follow-ups
 
-- [ ] replace bundled pricing snapshot with user-maintained/current provider data before quoting
+- [x] replace bundled pricing snapshot with user-maintained/current provider data before quoting
 - [x] calibrate estimation heuristics against completed freelance jobs
 - [x] add wheel installation smoke test and CI workflow
 
@@ -31,4 +31,4 @@
 - [x] profitability tracker
 - [x] estimator learning
 - [x] portfolio generator
-- [ ] client communication helper
+- [x] client communication helper

@@ -72,6 +72,8 @@ freelance status JOB-001
 | `freelance stats <JOB-ID>` | Calculate profitability, effective hourly rate, and margins | ✅ implemented |
 | `freelance portfolio <JOB-ID>` | Generate professional client case study (with optional `--anonymize`) | ✅ implemented |
 | `freelance calibrate` | Calculate historical estimation accuracy & multiplier recommendations | ✅ implemented |
+| `freelance message <JOB-ID> <STAGE>` | Generate tailored client messages for all project stages (PL/EN) | ✅ implemented |
+| `freelance pricing` | Inspect or dynamically update AI model pricing table | ✅ implemented |
 
 ## Integration with ai-dev-cli-tools
 

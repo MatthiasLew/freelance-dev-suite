@@ -1740,6 +1740,138 @@ def calibrate(json_output: bool) -> None:
     click.echo()
 
 
+# ──────────────────── Client Communication & Pricing ──────────────────
+
+
+@main.command("message")
+@click.argument("job_id")
+@click.argument(
+    "stage",
+    type=click.Choice(
+        ["intake", "quote", "update", "demo", "delivery", "reminder", "scope-notice"],
+        case_sensitive=False,
+    ),
+)
+@click.option(
+    "--lang",
+    type=click.Choice(["pl", "en"], case_sensitive=False),
+    default="pl",
+    help="Message language (pl or en).",
+)
+@click.option("--notes", type=str, default="", help="Custom notes, questions, or details.")
+@click.option("--json", "json_output", is_flag=True, help="Output structured JSON.")
+def message(
+    job_id: str,
+    stage: str,
+    lang: str,
+    notes: str,
+    json_output: bool,
+) -> None:
+    """Generate professional client messages (emails, updates, handoff, proposals)."""
+    import json as _json
+
+    from packages.communication.generator import MessageGenerator
+
+    job_id = job_id.upper()
+    manager = _get_manager()
+    job_dir = manager.get_job_dir(job_id)
+    if not job_dir:
+        click.secho(f"✗ Job {job_id} not found.", fg="red", err=True)
+        sys.exit(1)
+
+    gen = MessageGenerator()
+    msg = gen.generate(
+        job_id=job_id,
+        job_dir=job_dir,
+        stage=stage,
+        language=lang.lower(),
+        notes=notes,
+    )
+
+    if json_output:
+        click.echo(_json.dumps(msg.to_dict(), indent=2, ensure_ascii=False))
+        return
+
+    click.echo()
+    click.secho(f"CLIENT MESSAGE DRAFT [{msg.stage.upper()}]", bold=True, fg="cyan")
+    click.echo("─" * 65)
+    click.echo(msg.to_markdown())
+    click.echo("─" * 65)
+    click.echo()
+
+
+@main.command("pricing")
+@click.option("--model", "model_name", type=str, default=None, help="Model name to update.")
+@click.option(
+    "--input-price",
+    type=float,
+    default=None,
+    help="Input price per million tokens ($).",
+)
+@click.option(
+    "--output-price",
+    type=float,
+    default=None,
+    help="Output price per million tokens ($).",
+)
+@click.option("--json", "json_output", is_flag=True, help="Output structured JSON.")
+def pricing(
+    model_name: str | None,
+    input_price: float | None,
+    output_price: float | None,
+    json_output: bool,
+) -> None:
+    """List or update model pricing for AI cost estimation."""
+    import json as _json
+
+    from packages.ai_cost.pricing import (
+        ModelPricing,
+        load_model_pricing,
+        save_model_pricing,
+    )
+
+    models = load_model_pricing()
+
+    if model_name:
+        if input_price is None or output_price is None:
+            click.secho(
+                "✗ Both --input-price and --output-price are required when updating a model.",
+                fg="red",
+                err=True,
+            )
+            sys.exit(1)
+
+        models[model_name] = ModelPricing(
+            name=model_name,
+            input_per_million=input_price,
+            output_per_million=output_price,
+        )
+        save_model_pricing(models)
+        click.secho(
+            f"✓ Updated pricing for {model_name}: ${input_price}/M in, ${output_price}/M out",
+            fg="green",
+        )
+
+    if json_output:
+        out = {
+            k: {
+                "input_per_million": m.input_per_million,
+                "output_per_million": m.output_per_million,
+            }
+            for k, m in models.items()
+        }
+        click.echo(_json.dumps(out, indent=2, ensure_ascii=False))
+        return
+
+    click.echo()
+    click.secho("CONFIGURED AI MODEL PRICING (USD / 1M tokens)", bold=True)
+    click.echo(f"{'MODEL':<22} {'INPUT ($/M)':<15} {'OUTPUT ($/M)':<15}")
+    click.echo("─" * 52)
+    for name, m in sorted(models.items()):
+        click.echo(f"{name:<22} ${m.input_per_million:<14.2f} ${m.output_per_million:<14.2f}")
+    click.echo()
+
+
 # ──────────────────── Helpers ───────────────────────────────────────
 
 

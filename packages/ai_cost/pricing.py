@@ -74,3 +74,29 @@ def usd_to_pln(usd: float, rate: float) -> float:
     if rate <= 0:
         raise ValueError("USD/PLN exchange rate must be positive")
     return usd * rate
+
+
+def save_model_pricing(
+    models: dict[str, ModelPricing],
+    config_path: Path | None = None,
+) -> Path:
+    """Persist updated pricing dictionary to YAML file."""
+    path = config_path or DEFAULT_PRICING_PATH
+    raw_models: dict[str, dict[str, float]] = {}
+    for name, m in models.items():
+        data: dict[str, float] = {
+            "input_per_million": m.input_per_million,
+            "output_per_million": m.output_per_million,
+        }
+        if m.cached_input_per_million:
+            data["cached_input_per_million"] = m.cached_input_per_million
+        if m.reasoning_per_million:
+            data["reasoning_per_million"] = m.reasoning_per_million
+        raw_models[name] = data
+
+    path.write_text(
+        yaml.dump({"models": raw_models}, sort_keys=False),
+        encoding="utf-8",
+    )
+    return path
+
