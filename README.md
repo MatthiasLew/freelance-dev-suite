@@ -49,7 +49,7 @@ freelance status JOB-001
 | `freelance status <JOB-ID>` | Show job details | ✅ implemented |
 | `freelance analyze <JOB-ID>` | Run scan, validation, context, and AI-cost analysis | ✅ implemented |
 | `freelance estimate <JOB-ID>` | Generate and persist a full quote | ✅ implemented |
-| `freelance requirements <JOB-ID>` | Create requirements checklist | 🔜 planned |
+| `freelance requirements <JOB-ID>` | Create, track, and confirm requirements checklist | ✅ implemented |
 | `freelance start <JOB-ID>` | Bootstrap project | 🔜 planned |
 | `freelance bug add <JOB-ID>` | Add bug report | 🔜 planned |
 | `freelance scope check <JOB-ID>` | Detect scope changes | 🔜 planned |

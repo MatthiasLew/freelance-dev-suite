@@ -16,7 +16,7 @@
 
 ## P1 — First clients
 
-- [ ] requirements-to-checklist
+- [x] requirements-to-checklist
 - [ ] client-project-bootstrap
 - [ ] client-handoff
 

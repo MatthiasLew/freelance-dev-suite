@@ -9,28 +9,7 @@ import pytest
 from click.testing import CliRunner
 
 from freelance_cli.cli import main
-from freelance_cli.config import Config, save_config
 from packages.intake.analyzer import IntakeResult
-from packages.workspace.manager import WorkspaceManager
-
-
-@pytest.fixture
-def cli_runner(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> CliRunner:
-    """CLI runner with a temporary workspace."""
-    ws = tmp_path / "workspace"
-    ws.mkdir()
-    config = Config(workspace_root=str(ws))
-    config_path = tmp_path / "config.yaml"
-    save_config(config, config_path)
-
-    # Monkey-patch the config loading in cli.py
-    import freelance_cli.cli as cli_module
-
-    def patched_get_manager() -> WorkspaceManager:
-        return WorkspaceManager(config_path=config_path)
-
-    monkeypatch.setattr(cli_module, "_get_manager", patched_get_manager)
-    return CliRunner()
 
 
 class TestCLI:
@@ -109,7 +88,7 @@ class TestCLI:
 
     def test_placeholder_commands(self, cli_runner: CliRunner) -> None:
         """Placeholder commands should print a warning but not crash."""
-        for cmd in ["requirements", "start", "handoff", "finish"]:
+        for cmd in ["start", "handoff", "finish"]:
             result = cli_runner.invoke(main, [cmd, "JOB-001"])
             assert result.exit_code == 0
             assert "not yet implemented" in result.output.lower()

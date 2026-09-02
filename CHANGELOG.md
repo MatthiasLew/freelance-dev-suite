@@ -4,6 +4,9 @@
 
 ### Added
 
+- Requirements-to-checklist module (`packages/requirements`) with `RequirementsSpec`, `RequirementItem`, and `AcceptanceCriterion` data models.
+- Deterministic requirement extraction, section classification, and bidirectional Markdown synchronization (`client/requirements.md` <-> `work/checklist.md` <-> `analysis/requirements.json`).
+- CLI command `freelance requirements` supporting text generation, file input, `--confirm`, `--changed`, `--check`, `--uncheck`, `--checklist`, and `--json`.
 - Project intake backed by `ai-dev scan`, `map`, `check`, and `context build`.
 - Structured AI-cost estimates with explicit assumptions and configurable pricing.
 - Full quote calculation and JSON output for `analyze` and `estimate`.
