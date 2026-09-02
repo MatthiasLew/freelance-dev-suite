@@ -53,10 +53,10 @@ freelance status JOB-001
 | `freelance templates` | List available project starter templates | ✅ implemented |
 | `freelance bootstrap <TEMPLATE>` | Bootstrap standalone project from template | ✅ implemented |
 | `freelance start <JOB-ID>` | Bootstrap project and start job implementation | ✅ implemented |
+| `freelance handoff <JOB-ID>` | Run final QA Quality Gate & create handoff deliverables | ✅ implemented |
+| `freelance finish <JOB-ID>` | Close and archive delivered job | ✅ implemented |
 | `freelance bug add <JOB-ID>` | Add bug report | 🔜 planned |
 | `freelance scope check <JOB-ID>` | Detect scope changes | 🔜 planned |
-| `freelance handoff <JOB-ID>` | Run final QA | 🔜 planned |
-| `freelance finish <JOB-ID>` | Close and archive job | 🔜 planned |
 
 ## Integration with ai-dev-cli-tools
 

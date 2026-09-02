@@ -18,7 +18,7 @@
 
 - [x] requirements-to-checklist
 - [x] client-project-bootstrap
-- [ ] client-handoff
+- [x] client-handoff
 
 ## P2 — After first real jobs
 

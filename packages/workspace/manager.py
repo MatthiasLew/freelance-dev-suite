@@ -7,6 +7,7 @@ from pathlib import Path
 from freelance_cli.config import Config, load_config, save_config
 from freelance_cli.models.job import Job, JobSource, JobStatus
 from packages.workspace.storage import (
+    archive_job,
     find_all_jobs,
     find_job_by_id,
     find_job_dir,
@@ -79,3 +80,8 @@ class WorkspaceManager:
     def get_job_dir(self, job_id: str) -> Path | None:
         """Get the directory path for a job."""
         return find_job_dir(job_id, self.config.workspace_path)
+
+    def archive_job(self, job_id: str) -> Path | None:
+        """Move a job to the finished directory."""
+        return archive_job(job_id, self.config.workspace_path)
+

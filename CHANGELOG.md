@@ -4,6 +4,9 @@
 
 ### Added
 
+- Client-handoff module (`packages/handoff`) providing automated Final Quality Gate checks (requirements completion, clean git working tree, code hygiene / debug code scan, secrets & API credentials detection, documentation validation, and technical tests runner).
+- Client handoff package generator creating `handoff/` deliverables (`README_CLIENT.md`, `INSTALLATION.md`, `USER_GUIDE.md`, `CHANGELOG.md`, `TEST_REPORT.md`, `REQUIREMENTS.md`, and clean `release.zip` archive).
+- CLI commands `freelance handoff <JOB-ID>` and `freelance finish <JOB-ID>` with support for `--force`, `--archive`, `--skip-technical`, and `--json`.
 - Client-project-bootstrap module (`packages/bootstrap`) with 8 starter templates across Python (`python-cli`, `python-api`, `python-desktop`, `data-processing`, `automation-script`) and C# (`csharp-console`, `csharp-desktop`, `csharp-library`).
 - Automatic project scaffolding with test frameworks, linter/typecheck configs, docs (`REQUIREMENTS.md`, `ACCEPTANCE.md`, `HANDOFF.md`), git initialization, and `ai-dev-cli-tools` integration.
 - CLI commands `freelance templates`, `freelance bootstrap <TEMPLATE>`, and `freelance start <JOB-ID>`.

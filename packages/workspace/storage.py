@@ -113,3 +113,21 @@ def find_job_dir(job_id: str, workspace_root: Path) -> Path | None:
             if _matches_job_id(job_dir.name, job_id):
                 return job_dir
     return None
+
+
+def archive_job(job_id: str, workspace_root: Path) -> Path | None:
+    """Move a job directory from active/ to finished/. Returns new directory path."""
+    active_dir = workspace_root / "active"
+    finished_dir = workspace_root / "finished"
+    finished_dir.mkdir(parents=True, exist_ok=True)
+
+    if not active_dir.exists():
+        return None
+
+    for job_dir in active_dir.iterdir():
+        if _matches_job_id(job_dir.name, job_id):
+            dest = finished_dir / job_dir.name
+            job_dir.rename(dest)
+            return dest
+    return None
+
