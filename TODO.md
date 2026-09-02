@@ -17,7 +17,7 @@
 ## P1 — First clients
 
 - [x] requirements-to-checklist
-- [ ] client-project-bootstrap
+- [x] client-project-bootstrap
 - [ ] client-handoff
 
 ## P2 — After first real jobs

@@ -50,7 +50,9 @@ freelance status JOB-001
 | `freelance analyze <JOB-ID>` | Run scan, validation, context, and AI-cost analysis | ✅ implemented |
 | `freelance estimate <JOB-ID>` | Generate and persist a full quote | ✅ implemented |
 | `freelance requirements <JOB-ID>` | Create, track, and confirm requirements checklist | ✅ implemented |
-| `freelance start <JOB-ID>` | Bootstrap project | 🔜 planned |
+| `freelance templates` | List available project starter templates | ✅ implemented |
+| `freelance bootstrap <TEMPLATE>` | Bootstrap standalone project from template | ✅ implemented |
+| `freelance start <JOB-ID>` | Bootstrap project and start job implementation | ✅ implemented |
 | `freelance bug add <JOB-ID>` | Add bug report | 🔜 planned |
 | `freelance scope check <JOB-ID>` | Detect scope changes | 🔜 planned |
 | `freelance handoff <JOB-ID>` | Run final QA | 🔜 planned |

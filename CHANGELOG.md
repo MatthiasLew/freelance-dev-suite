@@ -4,6 +4,9 @@
 
 ### Added
 
+- Client-project-bootstrap module (`packages/bootstrap`) with 8 starter templates across Python (`python-cli`, `python-api`, `python-desktop`, `data-processing`, `automation-script`) and C# (`csharp-console`, `csharp-desktop`, `csharp-library`).
+- Automatic project scaffolding with test frameworks, linter/typecheck configs, docs (`REQUIREMENTS.md`, `ACCEPTANCE.md`, `HANDOFF.md`), git initialization, and `ai-dev-cli-tools` integration.
+- CLI commands `freelance templates`, `freelance bootstrap <TEMPLATE>`, and `freelance start <JOB-ID>`.
 - Requirements-to-checklist module (`packages/requirements`) with `RequirementsSpec`, `RequirementItem`, and `AcceptanceCriterion` data models.
 - Deterministic requirement extraction, section classification, and bidirectional Markdown synchronization (`client/requirements.md` <-> `work/checklist.md` <-> `analysis/requirements.json`).
 - CLI command `freelance requirements` supporting text generation, file input, `--confirm`, `--changed`, `--check`, `--uncheck`, `--checklist`, and `--json`.

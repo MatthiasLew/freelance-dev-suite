@@ -88,7 +88,7 @@ class TestCLI:
 
     def test_placeholder_commands(self, cli_runner: CliRunner) -> None:
         """Placeholder commands should print a warning but not crash."""
-        for cmd in ["start", "handoff", "finish"]:
+        for cmd in ["handoff", "finish"]:
             result = cli_runner.invoke(main, [cmd, "JOB-001"])
             assert result.exit_code == 0
             assert "not yet implemented" in result.output.lower()

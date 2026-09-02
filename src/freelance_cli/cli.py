@@ -561,11 +561,173 @@ def requirements(
     click.echo()
 
 
+@main.command("templates")
+def templates_list() -> None:
+    """List available project starter templates."""
+    from packages.bootstrap.templates import list_templates
+
+    tmpls = list_templates()
+    click.echo()
+    click.secho(f"{'TEMPLATE':<20} {'LANGUAGE':<10} {'DESCRIPTION'}", bold=True)
+    click.echo("─" * 80)
+    for t in tmpls:
+        click.echo(f"{t.name:<20} {t.language:<10} {t.description}")
+    click.echo()
+
+
+@main.command("bootstrap")
+@click.argument("template_name")
+@click.option("--name", "project_name", type=str, default="", help="Project name.")
+@click.option(
+    "--path",
+    "target_path",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Target directory path.",
+)
+@click.option("--description", type=str, default="", help="Project description.")
+@click.option("--no-git", is_flag=True, help="Do not initialize git repository.")
+@click.option("--bootstrap", "run_ai_bootstrap", is_flag=True, help="Run ai-dev bootstrap.")
+@click.option("--json", "json_output", is_flag=True, help="Print structured JSON.")
+def bootstrap(
+    template_name: str,
+    project_name: str,
+    target_path: Path | None,
+    description: str,
+    no_git: bool,
+    run_ai_bootstrap: bool,
+    json_output: bool,
+) -> None:
+    """Bootstrap a new standalone project from a template."""
+    import json as _json
+
+    from packages.bootstrap.scaffolder import scaffold_project
+
+    dest = target_path or Path.cwd() / (project_name or template_name)
+    proj_name = project_name or dest.name
+
+    try:
+        result = scaffold_project(
+            target_dir=dest,
+            template_name=template_name,
+            project_name=proj_name,
+            description=description,
+            init_git=not no_git,
+            run_bootstrap=run_ai_bootstrap,
+        )
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if json_output:
+        click.echo(_json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
+        return
+
+    click.echo()
+    click.secho(f"✓ Project bootstrapped from {template_name}", fg="green", bold=True)
+    click.echo("─" * 55)
+    click.echo(result.summary())
+    click.echo()
+
+
 @main.command("start")
 @click.argument("job_id")
-def start_job(job_id: str) -> None:
-    """Bootstrap a project. (Not yet implemented)"""
-    click.secho(f"⚠ start is not yet implemented for {job_id.upper()}", fg="yellow")
+@click.option(
+    "--template",
+    "template_name",
+    type=str,
+    default="python-cli",
+    help="Starter template name (use 'freelance templates' to view all).",
+)
+@click.option(
+    "--path",
+    "custom_path",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Custom project destination path.",
+)
+@click.option("--no-git", is_flag=True, help="Do not initialize git repository.")
+@click.option("--bootstrap", "run_ai_bootstrap", is_flag=True, help="Run ai-dev bootstrap.")
+@click.option("--json", "json_output", is_flag=True, help="Print structured JSON.")
+def start_job(
+    job_id: str,
+    template_name: str,
+    custom_path: Path | None,
+    no_git: bool,
+    run_ai_bootstrap: bool,
+    json_output: bool,
+) -> None:
+    """Bootstrap and start implementation for a freelance job."""
+    import json as _json
+
+    from packages.bootstrap.scaffolder import scaffold_project
+    from packages.requirements.models import RequirementsSpec
+
+    job_id = job_id.upper()
+    manager = _get_manager()
+    found_job = manager.get_job(job_id)
+
+    if found_job is None:
+        click.secho(f"✗ Job {job_id} not found.", fg="red", err=True)
+        sys.exit(1)
+
+    job_dir = manager.get_job_dir(job_id)
+    if not job_dir:
+        click.secho(f"✗ Workspace not found for {job_id}.", fg="red", err=True)
+        sys.exit(1)
+
+    target_dir = custom_path or (job_dir / "project")
+
+    # Load requirements specification if already generated
+    req_spec: RequirementsSpec | None = None
+    req_json_path = job_dir / "analysis" / "requirements.json"
+    if req_json_path.exists():
+        try:
+            with open(req_json_path, encoding="utf-8") as f:
+                req_spec = RequirementsSpec.from_dict(_json.load(f))
+        except (OSError, _json.JSONDecodeError):
+            req_spec = None
+
+    try:
+        result = scaffold_project(
+            target_dir=target_dir,
+            template_name=template_name,
+            project_name=f"{job_id}-{found_job.client}",
+            description=found_job.description,
+            requirements_spec=req_spec,
+            init_git=not no_git,
+            run_bootstrap=run_ai_bootstrap,
+        )
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    # Update job repository and status
+    found_job.repository = str(target_dir.resolve())
+    if found_job.status in {"LEAD", "ANALYSIS", "WAITING_FOR_CLIENT", "ACCEPTED"}:
+        found_job.change_status("IN_PROGRESS", f"Bootstrapped with {template_name}")
+
+    from packages.workspace.storage import save_job
+
+    save_job(found_job, manager.config.workspace_path)
+
+    if json_output:
+        out_payload = {
+            "job": found_job.to_dict(),
+            "scaffold": result.to_dict(),
+        }
+        click.echo(_json.dumps(out_payload, indent=2, ensure_ascii=False))
+        return
+
+    click.echo()
+    click.secho(f"✓ Started {job_id} ({template_name})", fg="green", bold=True)
+    click.echo("─" * 55)
+    click.echo(f"  Client:       {found_job.client}")
+    click.echo(f"  Description:  {found_job.description}")
+    click.echo(f"  Status:       {found_job.status}")
+    click.echo(f"  Repository:   {found_job.repository}")
+    click.echo(f"  Files:        {len(result.files_created)} scaffolded")
+    if result.git_initialized:
+        click.echo("  Git:          Initialized with initial commit")
+    click.echo()
 
 
 @main.command("handoff")
