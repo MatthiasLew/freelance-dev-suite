@@ -27,8 +27,8 @@
 
 ## P3 — Optimization
 
-- [ ] time tracker
-- [ ] profitability tracker
+- [x] time tracker
+- [x] profitability tracker
 - [ ] estimator learning
 - [ ] portfolio generator
 - [ ] client communication helper

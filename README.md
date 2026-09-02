@@ -65,6 +65,11 @@ freelance status JOB-001
 | `freelance scope list <JOB-ID>` | List all analyzed scope changes | ✅ implemented |
 | `freelance scope show <JOB-ID> <CHANGE-ID>` | View scope change impact analysis or client proposal message | ✅ implemented |
 | `freelance scope snapshot <JOB-ID>` | Create a frozen baseline snapshot of requirements spec | ✅ implemented |
+| `freelance timer start <JOB-ID>` | Start recording development session | ✅ implemented |
+| `freelance timer stop [JOB-ID]` | Stop active timer session and log duration | ✅ implemented |
+| `freelance timer status [JOB-ID]` | Check active timer session status | ✅ implemented |
+| `freelance timer log <JOB-ID>` | Show recorded time log and sessions | ✅ implemented |
+| `freelance stats <JOB-ID>` | Calculate profitability, effective hourly rate, and margins | ✅ implemented |
 
 ## Integration with ai-dev-cli-tools
 

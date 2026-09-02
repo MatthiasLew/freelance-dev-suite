@@ -4,6 +4,9 @@
 
 ### Added
 
+- Time tracking & profitability module (`packages/tracking`) with `TimeTracker` for recording work sessions, categorized activities, and durations in `work/time-log.json`.
+- `ProfitabilityCalculator` for computing effective hourly rates, profit margins, AI tooling expenses, and quote vs actual variance in `analysis/profitability-report.md`.
+- CLI commands `freelance timer start`, `freelance timer stop`, `freelance timer status`, `freelance timer log`, and `freelance stats`.
 - Scope-change-detector module (`packages/scope`) for detecting scope creep against baseline requirements, classifying requests (`IN_SCOPE`, `MINOR_EXTENSION`, `OUT_OF_SCOPE`, `BREAKING_CHANGE`), and calculating extra hours, AI costs, and surcharges.
 - Client proposal generator creating ready-to-send change order messages in `work/scope/CHANGE-XXX-proposal.md` and detailed technical assessments in `work/scope/CHANGE-XXX-analysis.md`.
 - CLI commands `freelance scope check`, `freelance scope list`, `freelance scope show`, and `freelance scope snapshot`.
