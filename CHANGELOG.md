@@ -4,6 +4,9 @@
 
 ### Added
 
+- Bug-report-to-reproduction module (`packages/bugs`) for deterministic issue parsing, automatic clarifying questions generator (`questions-for-client.md`), and standalone reproduction script generator (`repro.py`).
+- Bug lifecycle state management (`REPORTED`, `NEEDS_INFO`, `REPRODUCED`, `FIX_IN_PROGRESS`, `FIXED`, `REGRESSION_TESTED`, `CLOSED`) and regression test linkage.
+- CLI commands `freelance bug add`, `freelance bug list`, `freelance bug show`, `freelance bug status`, `freelance bug repro`, and `freelance bug test`.
 - Client-handoff module (`packages/handoff`) providing automated Final Quality Gate checks (requirements completion, clean git working tree, code hygiene / debug code scan, secrets & API credentials detection, documentation validation, and technical tests runner).
 - Client handoff package generator creating `handoff/` deliverables (`README_CLIENT.md`, `INSTALLATION.md`, `USER_GUIDE.md`, `CHANGELOG.md`, `TEST_REPORT.md`, `REQUIREMENTS.md`, and clean `release.zip` archive).
 - CLI commands `freelance handoff <JOB-ID>` and `freelance finish <JOB-ID>` with support for `--force`, `--archive`, `--skip-technical`, and `--json`.

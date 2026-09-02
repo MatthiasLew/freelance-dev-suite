@@ -89,8 +89,6 @@ class TestCLI:
     def test_placeholder_commands(self, cli_runner: CliRunner) -> None:
         """Placeholder commands should print a warning but not crash."""
         cmds = [
-            ["bug", "add", "JOB-001"],
-            ["bug", "list", "JOB-001"],
             ["scope", "check", "JOB-001"],
         ]
         for cmd in cmds:

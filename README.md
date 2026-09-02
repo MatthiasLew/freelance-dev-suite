@@ -55,7 +55,12 @@ freelance status JOB-001
 | `freelance start <JOB-ID>` | Bootstrap project and start job implementation | ✅ implemented |
 | `freelance handoff <JOB-ID>` | Run final QA Quality Gate & create handoff deliverables | ✅ implemented |
 | `freelance finish <JOB-ID>` | Close and archive delivered job | ✅ implemented |
-| `freelance bug add <JOB-ID>` | Add bug report | 🔜 planned |
+| `freelance bug add <JOB-ID>` | Add, parse, and structure client bug report | ✅ implemented |
+| `freelance bug list <JOB-ID>` | List tracked bug reports and status | ✅ implemented |
+| `freelance bug show <JOB-ID> <BUG-ID>` | View bug summary or client questions | ✅ implemented |
+| `freelance bug status <JOB-ID> <BUG-ID>` | Update bug lifecycle state | ✅ implemented |
+| `freelance bug repro <JOB-ID> <BUG-ID>` | View standalone reproduction script | ✅ implemented |
+| `freelance bug test <JOB-ID> <BUG-ID>` | Link regression test file | ✅ implemented |
 | `freelance scope check <JOB-ID>` | Detect scope changes | 🔜 planned |
 
 ## Integration with ai-dev-cli-tools
