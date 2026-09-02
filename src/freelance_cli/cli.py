@@ -1654,6 +1654,92 @@ def stats(job_id: str, json_output: bool) -> None:
     click.echo()
 
 
+# ──────────────────── Portfolio & Calibration ────────────────────────
+
+
+@main.command("portfolio")
+@click.argument("job_id")
+@click.option("--anonymize", is_flag=True, help="Anonymize client name and confidential details.")
+@click.option(
+    "--output",
+    "output_file",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Custom output file path.",
+)
+@click.option("--json", "json_output", is_flag=True, help="Output structured JSON.")
+def portfolio(
+    job_id: str,
+    anonymize: bool,
+    output_file: Path | None,
+    json_output: bool,
+) -> None:
+    """Generate professional Markdown case study from completed job."""
+    import json as _json
+
+    from packages.portfolio.generator import PortfolioGenerator
+
+    job_id = job_id.upper()
+    manager = _get_manager()
+    job_dir = manager.get_job_dir(job_id)
+    if not job_dir:
+        click.secho(f"✗ Job {job_id} not found.", fg="red", err=True)
+        sys.exit(1)
+
+    gen = PortfolioGenerator()
+    case_study, saved_path = gen.generate(
+        job_id=job_id,
+        job_dir=job_dir,
+        anonymize=anonymize,
+        output_path=output_file,
+    )
+
+    if json_output:
+        out = {
+            "case_study": case_study.to_dict(),
+            "output_path": str(saved_path),
+        }
+        click.echo(_json.dumps(out, indent=2, ensure_ascii=False))
+        return
+
+    click.echo()
+    click.secho("✓ Case Study Generated Successfully!", fg="green", bold=True)
+    click.echo(f"  Title:        {case_study.title}")
+    click.echo(f"  Client:       {case_study.client_name}")
+    click.echo(f"  Anonymized:   {case_study.is_anonymized}")
+    click.echo(f"  Output file:  {saved_path}")
+    click.echo()
+
+
+@main.command("calibrate")
+@click.option("--json", "json_output", is_flag=True, help="Output structured JSON.")
+def calibrate(json_output: bool) -> None:
+    """Analyze historical estimation accuracy and recommend calibration."""
+    import json as _json
+
+    from packages.estimator.calibration import EstimatorCalibrator
+
+    manager = _get_manager()
+    calibrator = EstimatorCalibrator()
+    result = calibrator.calibrate(manager)
+
+    if json_output:
+        click.echo(_json.dumps(result, indent=2, ensure_ascii=False))
+        return
+
+    click.echo()
+    click.secho("ESTIMATOR CALIBRATION & HISTORICAL ACCURACY", bold=True)
+    click.echo("─" * 60)
+    click.echo(f"  Jobs Analyzed:          {result['jobs_analyzed']}")
+    click.echo(f"  Total Estimated Hours:  {result['total_estimated_hours']:.1f}h")
+    click.echo(f"  Total Actual Hours:     {result['total_actual_hours']:.1f}h")
+    click.echo(f"  Calibration Multiplier: {result['calibration_multiplier']}x")
+    click.echo(f"  Average Variance:       {result['average_variance_percent']:+.1f}%")
+    click.echo()
+    click.secho(f"  Recommendation: {result['recommendation']}", fg="cyan")
+    click.echo()
+
+
 # ──────────────────── Helpers ───────────────────────────────────────
 
 

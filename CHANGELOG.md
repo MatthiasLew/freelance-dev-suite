@@ -4,6 +4,10 @@
 
 ### Added
 
+- Portfolio generator module (`packages/portfolio`) creating client case studies with optional anonymization and export to `portfolio/<JOB-ID>-case-study.md`.
+- Estimator calibration & heuristic learning module (`packages/estimator/calibration.py`) computing historical quote-vs-actual multipliers and variance analysis.
+- GitHub Actions continuous integration pipeline (`.github/workflows/ci.yml`) validating Python 3.11, 3.12, and 3.13 with Ruff, Mypy, and Pytest coverage.
+- CLI commands `freelance portfolio <JOB-ID>` and `freelance calibrate`.
 - Time tracking & profitability module (`packages/tracking`) with `TimeTracker` for recording work sessions, categorized activities, and durations in `work/time-log.json`.
 - `ProfitabilityCalculator` for computing effective hourly rates, profit margins, AI tooling expenses, and quote vs actual variance in `analysis/profitability-report.md`.
 - CLI commands `freelance timer start`, `freelance timer stop`, `freelance timer status`, `freelance timer log`, and `freelance stats`.

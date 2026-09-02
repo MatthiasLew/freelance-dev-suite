@@ -70,6 +70,8 @@ freelance status JOB-001
 | `freelance timer status [JOB-ID]` | Check active timer session status | ✅ implemented |
 | `freelance timer log <JOB-ID>` | Show recorded time log and sessions | ✅ implemented |
 | `freelance stats <JOB-ID>` | Calculate profitability, effective hourly rate, and margins | ✅ implemented |
+| `freelance portfolio <JOB-ID>` | Generate professional client case study (with optional `--anonymize`) | ✅ implemented |
+| `freelance calibrate` | Calculate historical estimation accuracy & multiplier recommendations | ✅ implemented |
 
 ## Integration with ai-dev-cli-tools
 
