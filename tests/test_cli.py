@@ -86,15 +86,11 @@ class TestCLI:
         assert result.exit_code == 0
         assert "ANALYSIS" in result.output
 
-    def test_placeholder_commands(self, cli_runner: CliRunner) -> None:
-        """Placeholder commands should print a warning but not crash."""
-        cmds = [
-            ["scope", "check", "JOB-001"],
-        ]
-        for cmd in cmds:
-            result = cli_runner.invoke(main, cmd)
-            assert result.exit_code == 0
-            assert "not yet implemented" in result.output.lower()
+    def test_cli_version_and_help(self, cli_runner: CliRunner) -> None:
+        """CLI should provide help and version information."""
+        result = cli_runner.invoke(main, ["--help"])
+        assert result.exit_code == 0
+        assert "freelance" in result.output.lower() or "usage" in result.output.lower()
 
     def test_analyze_then_estimate_json(
         self,

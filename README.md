@@ -61,7 +61,10 @@ freelance status JOB-001
 | `freelance bug status <JOB-ID> <BUG-ID>` | Update bug lifecycle state | ✅ implemented |
 | `freelance bug repro <JOB-ID> <BUG-ID>` | View standalone reproduction script | ✅ implemented |
 | `freelance bug test <JOB-ID> <BUG-ID>` | Link regression test file | ✅ implemented |
-| `freelance scope check <JOB-ID>` | Detect scope changes | 🔜 planned |
+| `freelance scope check <JOB-ID> [REQ]` | Detect scope changes, estimate extra hours/AI cost & surcharge | ✅ implemented |
+| `freelance scope list <JOB-ID>` | List all analyzed scope changes | ✅ implemented |
+| `freelance scope show <JOB-ID> <CHANGE-ID>` | View scope change impact analysis or client proposal message | ✅ implemented |
+| `freelance scope snapshot <JOB-ID>` | Create a frozen baseline snapshot of requirements spec | ✅ implemented |
 
 ## Integration with ai-dev-cli-tools
 

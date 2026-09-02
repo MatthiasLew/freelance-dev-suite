@@ -23,7 +23,7 @@
 ## P2 — After first real jobs
 
 - [x] bug-report-to-reproduction
-- [ ] scope-change-detector
+- [x] scope-change-detector
 
 ## P3 — Optimization
 

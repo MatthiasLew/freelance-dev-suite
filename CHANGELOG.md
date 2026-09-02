@@ -4,6 +4,9 @@
 
 ### Added
 
+- Scope-change-detector module (`packages/scope`) for detecting scope creep against baseline requirements, classifying requests (`IN_SCOPE`, `MINOR_EXTENSION`, `OUT_OF_SCOPE`, `BREAKING_CHANGE`), and calculating extra hours, AI costs, and surcharges.
+- Client proposal generator creating ready-to-send change order messages in `work/scope/CHANGE-XXX-proposal.md` and detailed technical assessments in `work/scope/CHANGE-XXX-analysis.md`.
+- CLI commands `freelance scope check`, `freelance scope list`, `freelance scope show`, and `freelance scope snapshot`.
 - Bug-report-to-reproduction module (`packages/bugs`) for deterministic issue parsing, automatic clarifying questions generator (`questions-for-client.md`), and standalone reproduction script generator (`repro.py`).
 - Bug lifecycle state management (`REPORTED`, `NEEDS_INFO`, `REPRODUCED`, `FIX_IN_PROGRESS`, `FIXED`, `REGRESSION_TESTED`, `CLOSED`) and regression test linkage.
 - CLI commands `freelance bug add`, `freelance bug list`, `freelance bug show`, `freelance bug status`, `freelance bug repro`, and `freelance bug test`.
