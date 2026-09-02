@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import tempfile
+import json
 from pathlib import Path
 
 import pytest
@@ -10,6 +10,8 @@ from click.testing import CliRunner
 
 from freelance_cli.cli import main
 from freelance_cli.config import Config, save_config
+from packages.intake.analyzer import IntakeResult
+from packages.workspace.manager import WorkspaceManager
 
 
 @pytest.fixture
@@ -24,10 +26,8 @@ def cli_runner(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> CliRunner:
     # Monkey-patch the config loading in cli.py
     import freelance_cli.cli as cli_module
 
-    original_get_manager = cli_module._get_manager
-
-    def patched_get_manager() -> cli_module.WorkspaceManager:
-        return cli_module.WorkspaceManager(config_path=config_path)
+    def patched_get_manager() -> WorkspaceManager:
+        return WorkspaceManager(config_path=config_path)
 
     monkeypatch.setattr(cli_module, "_get_manager", patched_get_manager)
     return CliRunner()
@@ -47,8 +47,20 @@ class TestCLI:
     def test_job_new(self, cli_runner: CliRunner) -> None:
         result = cli_runner.invoke(
             main,
-            ["job", "new", "--client", "TestCo", "--description", "Fix bug",
-             "--source", "Useme", "--budget", "500", "--deadline", "2026-09-15"],
+            [
+                "job",
+                "new",
+                "--client",
+                "TestCo",
+                "--description",
+                "Fix bug",
+                "--source",
+                "Useme",
+                "--budget",
+                "500",
+                "--deadline",
+                "2026-09-15",
+            ],
         )
         assert result.exit_code == 0
         assert "JOB-001" in result.output
@@ -97,7 +109,75 @@ class TestCLI:
 
     def test_placeholder_commands(self, cli_runner: CliRunner) -> None:
         """Placeholder commands should print a warning but not crash."""
-        for cmd in ["analyze", "estimate", "requirements", "start", "handoff", "finish"]:
+        for cmd in ["requirements", "start", "handoff", "finish"]:
             result = cli_runner.invoke(main, [cmd, "JOB-001"])
             assert result.exit_code == 0
             assert "not yet implemented" in result.output.lower()
+
+    def test_analyze_then_estimate_json(
+        self,
+        cli_runner: CliRunner,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        repository = tmp_path / "client-repo"
+        repository.mkdir()
+        created = cli_runner.invoke(
+            main,
+            [
+                "job",
+                "new",
+                "--client",
+                "Client",
+                "--description",
+                "Fix parser",
+                "--source",
+                "Direct",
+                "--repository",
+                str(repository),
+            ],
+        )
+        assert created.exit_code == 0
+
+        intake = IntakeResult(
+            project_path=str(repository),
+            languages=["python"],
+            frameworks=[],
+            package_managers=["pip/pyproject"],
+            has_tests=True,
+            has_lint=True,
+            has_typecheck=True,
+            has_docker=False,
+            has_ci=True,
+            total_files=10,
+            source_files=4,
+            loc=500,
+            dependency_count=3,
+            repo_size_bytes=1_000,
+            risk_level="LOW",
+            risk_factors=[],
+            complexity="LOW",
+            estimated_hours_min=1.0,
+            estimated_hours_max=3.0,
+            workspace_count=1,
+            scan_data={},
+            timestamp="2026-09-02T00:00:00+02:00",
+            validation_status="success",
+            tests_total=5,
+            tests_passed=5,
+            lint_status="passed",
+            typecheck_status="passed",
+            context_tokens=2_000,
+        )
+        monkeypatch.setattr(
+            "packages.intake.analyzer.analyze_project",
+            lambda *args, **kwargs: intake,
+        )
+
+        analyzed = cli_runner.invoke(main, ["analyze", "JOB-001", "--json"])
+        assert analyzed.exit_code == 0, analyzed.output
+        assert json.loads(analyzed.output)["intake"]["tests_passed"] == 5
+
+        estimated = cli_runner.invoke(main, ["estimate", "JOB-001", "--json"])
+        assert estimated.exit_code == 0, estimated.output
+        assert json.loads(estimated.output)["minimum_technical_price_pln"] > 0

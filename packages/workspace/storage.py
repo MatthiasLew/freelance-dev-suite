@@ -51,14 +51,11 @@ def load_job(job_path: Path) -> Job:
     return Job.from_dict(data)
 
 
-def find_all_jobs(workspace_root: Path) -> list[Job]:
-    """Find and load all jobs from the active directory."""
-    active_dir = workspace_root / "active"
-    if not active_dir.exists():
-        return []
-
+def _load_jobs_from(parent_dir: Path) -> list[Job]:
     jobs: list[Job] = []
-    for job_dir in sorted(active_dir.iterdir()):
+    if not parent_dir.exists():
+        return jobs
+    for job_dir in sorted(parent_dir.iterdir()):
         job_file = job_dir / "job.json"
         if job_file.exists():
             try:
@@ -69,6 +66,18 @@ def find_all_jobs(workspace_root: Path) -> list[Job]:
     return jobs
 
 
+def find_all_jobs(workspace_root: Path, include_finished: bool = False) -> list[Job]:
+    """Find jobs in active and, when requested, finished storage."""
+    jobs = _load_jobs_from(workspace_root / "active")
+    if include_finished:
+        jobs.extend(_load_jobs_from(workspace_root / "finished"))
+    return jobs
+
+
+def _matches_job_id(directory_name: str, job_id: str) -> bool:
+    return directory_name == job_id or directory_name.startswith(f"{job_id}-")
+
+
 def find_job_by_id(job_id: str, workspace_root: Path) -> Job | None:
     """Find a specific job by its JOB-ID."""
     active_dir = workspace_root / "active"
@@ -77,7 +86,7 @@ def find_job_by_id(job_id: str, workspace_root: Path) -> Job | None:
 
     # JOB-ID is the prefix of the directory name
     for job_dir in active_dir.iterdir():
-        if job_dir.name.startswith(job_id):
+        if _matches_job_id(job_dir.name, job_id):
             job_file = job_dir / "job.json"
             if job_file.exists():
                 return load_job(job_file)
@@ -86,7 +95,7 @@ def find_job_by_id(job_id: str, workspace_root: Path) -> Job | None:
     finished_dir = workspace_root / "finished"
     if finished_dir.exists():
         for job_dir in finished_dir.iterdir():
-            if job_dir.name.startswith(job_id):
+            if _matches_job_id(job_dir.name, job_id):
                 job_file = job_dir / "job.json"
                 if job_file.exists():
                     return load_job(job_file)
@@ -101,6 +110,6 @@ def find_job_dir(job_id: str, workspace_root: Path) -> Path | None:
         if not parent_dir.exists():
             continue
         for job_dir in parent_dir.iterdir():
-            if job_dir.name.startswith(job_id):
+            if _matches_job_id(job_dir.name, job_id):
                 return job_dir
     return None

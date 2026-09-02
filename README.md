@@ -47,8 +47,8 @@ freelance status JOB-001
 | `freelance job new` | Create a new job | ✅ implemented |
 | `freelance jobs` | List all active jobs | ✅ implemented |
 | `freelance status <JOB-ID>` | Show job details | ✅ implemented |
-| `freelance analyze <JOB-ID>` | Run project intake analysis | 🔜 planned |
-| `freelance estimate <JOB-ID>` | Generate full quote | 🔜 planned |
+| `freelance analyze <JOB-ID>` | Run scan, validation, context, and AI-cost analysis | ✅ implemented |
+| `freelance estimate <JOB-ID>` | Generate and persist a full quote | ✅ implemented |
 | `freelance requirements <JOB-ID>` | Create requirements checklist | 🔜 planned |
 | `freelance start <JOB-ID>` | Bootstrap project | 🔜 planned |
 | `freelance bug add <JOB-ID>` | Add bug report | 🔜 planned |
@@ -69,6 +69,39 @@ Install with AI dev tools integration:
 ```bash
 pip install "freelance-dev-suite[ai-dev]"
 ```
+
+`freelance analyze` fails with a clear error when the engine is unavailable. During local
+cross-repository development, point it at a source checkout executable:
+
+```powershell
+$env:AI_DEV_EXECUTABLE = "C:\path\to\ai-dev-cli-tools\.venv\Scripts\ai-dev.exe"
+```
+
+Analysis runs `scan`, `map`, `check`, and `context build`. Use `--check-mode fast` when a preview
+without the complete validation suite is sufficient. Both MVP commands support structured output:
+
+```bash
+freelance analyze JOB-001 --json
+freelance estimate JOB-001 --json
+```
+
+## Pricing configuration
+
+Provider prices and the USD/PLN rate are assumptions, not live market data. The package contains a
+reviewable default pricing snapshot. A user configuration may select another model, pricing file,
+and exchange rate:
+
+```yaml
+models:
+  default: claude-sonnet-4
+  pricing_file: C:/freelance/model-pricing.yaml
+
+exchange_rates:
+  usd_to_pln: 4.0
+```
+
+The external pricing file uses a top-level `models` mapping with separate input, output, cached
+input, and optional reasoning prices per million tokens.
 
 ## Architecture
 

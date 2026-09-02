@@ -6,13 +6,11 @@ Workspace root defaults to ~/freelance-workspace if not configured.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
-
 
 DEFAULT_CONFIG_DIR = Path.home() / ".freelance"
 DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_DIR / "config.yaml"
@@ -37,7 +35,9 @@ class Config:
     currency: str = "PLN"
     pricing: PricingConfig = field(default_factory=PricingConfig)
     workspace_root: str = str(DEFAULT_WORKSPACE_ROOT)
-    default_model: str = "codex"
+    default_model: str = "claude-sonnet-4"
+    model_pricing_path: str | None = None
+    usd_to_pln_rate: float = 4.0
     job_counter: int = 0
 
     @property
@@ -74,7 +74,11 @@ class Config:
                 "risk_buffer_percent": self.pricing.risk_buffer_percent,
             },
             "workspace": {"root": self.workspace_root},
-            "models": {"default": self.default_model},
+            "models": {
+                "default": self.default_model,
+                "pricing_file": self.model_pricing_path,
+            },
+            "exchange_rates": {"usd_to_pln": self.usd_to_pln_rate},
             "internal": {"job_counter": self.job_counter},
         }
 
@@ -90,12 +94,15 @@ class Config:
         )
         workspace_data = data.get("workspace", {})
         models_data = data.get("models", {})
+        exchange_data = data.get("exchange_rates", {})
         internal_data = data.get("internal", {})
         return cls(
             currency=data.get("currency", "PLN"),
             pricing=pricing,
             workspace_root=workspace_data.get("root", str(DEFAULT_WORKSPACE_ROOT)),
-            default_model=models_data.get("default", "codex"),
+            default_model=models_data.get("default", "claude-sonnet-4"),
+            model_pricing_path=models_data.get("pricing_file"),
+            usd_to_pln_rate=float(exchange_data.get("usd_to_pln", 4.0)),
             job_counter=internal_data.get("job_counter", 0),
         )
 
@@ -115,4 +122,10 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
     path = config_path or DEFAULT_CONFIG_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        yaml.dump(config.to_dict(), f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        yaml.dump(
+            config.to_dict(),
+            f,
+            default_flow_style=False,
+            allow_unicode=True,
+            sort_keys=False,
+        )

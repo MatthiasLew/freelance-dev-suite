@@ -2,27 +2,25 @@
 
 from __future__ import annotations
 
-import json
-import tempfile
 from pathlib import Path
 
 import pytest
 
-from freelance_cli.config import Config, save_config, load_config
-from freelance_cli.models.job import Job, JobStatus, StatusChange
+from freelance_cli.config import Config, load_config, save_config
+from freelance_cli.models.job import Job
+from packages.workspace.manager import WorkspaceManager
 from packages.workspace.storage import (
-    save_job,
-    load_job,
+    _slugify,
     find_all_jobs,
     find_job_by_id,
     find_job_dir,
     job_dir_name,
-    _slugify,
+    load_job,
+    save_job,
 )
-from packages.workspace.manager import WorkspaceManager
-
 
 # ──────────────────── Fixtures ──────────────────────────────────────
+
 
 @pytest.fixture
 def tmp_workspace(tmp_path: Path) -> Path:
@@ -59,6 +57,7 @@ def sample_job() -> Job:
 
 # ──────────────────── Job model tests ───────────────────────────────
 
+
 class TestJobModel:
     def test_create_job(self, sample_job: Job) -> None:
         assert sample_job.id == "JOB-001"
@@ -72,6 +71,10 @@ class TestJobModel:
         assert sample_job.status_history[0]["from_status"] == "LEAD"
         assert sample_job.status_history[0]["to_status"] == "ANALYSIS"
         assert sample_job.status_history[0]["note"] == "Starting analysis"
+
+    def test_change_status_rejects_unknown_status(self, sample_job: Job) -> None:
+        with pytest.raises(ValueError):
+            sample_job.change_status("UNKNOWN")
 
     def test_multiple_status_changes(self, sample_job: Job) -> None:
         sample_job.change_status("ANALYSIS")
@@ -108,6 +111,7 @@ class TestJobModel:
 
 
 # ──────────────────── Storage tests ─────────────────────────────────
+
 
 class TestStorage:
     def test_slugify(self) -> None:
@@ -149,6 +153,16 @@ class TestStorage:
         jobs = find_all_jobs(tmp_workspace)
         assert jobs == []
 
+    def test_find_all_jobs_can_include_finished(self, tmp_workspace: Path) -> None:
+        job = Job(id="JOB-001", client="A", description="Finished task", status="CLOSED")
+        active_dir = save_job(job, tmp_workspace)
+        active_dir.rename(tmp_workspace / "finished" / active_dir.name)
+
+        assert find_all_jobs(tmp_workspace) == []
+        assert [item.id for item in find_all_jobs(tmp_workspace, include_finished=True)] == [
+            "JOB-001"
+        ]
+
     def test_find_job_by_id(self, sample_job: Job, tmp_workspace: Path) -> None:
         save_job(sample_job, tmp_workspace)
         found = find_job_by_id("JOB-001", tmp_workspace)
@@ -167,10 +181,9 @@ class TestStorage:
 
 # ──────────────────── Manager tests ─────────────────────────────────
 
+
 class TestWorkspaceManager:
-    def test_create_job(
-        self, tmp_config: tuple[Config, Path], tmp_workspace: Path
-    ) -> None:
+    def test_create_job(self, tmp_config: tuple[Config, Path], tmp_workspace: Path) -> None:
         config, config_path = tmp_config
         manager = WorkspaceManager(config=config, config_path=config_path)
         job = manager.create_job(
@@ -184,9 +197,7 @@ class TestWorkspaceManager:
         assert job.client == "TestCo"
         assert job.status == "LEAD"
 
-    def test_create_multiple_jobs(
-        self, tmp_config: tuple[Config, Path]
-    ) -> None:
+    def test_create_multiple_jobs(self, tmp_config: tuple[Config, Path]) -> None:
         config, config_path = tmp_config
         manager = WorkspaceManager(config=config, config_path=config_path)
         j1 = manager.create_job(client="A", description="Task A")
@@ -212,16 +223,12 @@ class TestWorkspaceManager:
         assert found is not None
         assert found.client == "Test"
 
-    def test_get_nonexistent_job(
-        self, tmp_config: tuple[Config, Path]
-    ) -> None:
+    def test_get_nonexistent_job(self, tmp_config: tuple[Config, Path]) -> None:
         config, config_path = tmp_config
         manager = WorkspaceManager(config=config, config_path=config_path)
         assert manager.get_job("JOB-999") is None
 
-    def test_update_job_status(
-        self, tmp_config: tuple[Config, Path]
-    ) -> None:
+    def test_update_job_status(self, tmp_config: tuple[Config, Path]) -> None:
         config, config_path = tmp_config
         manager = WorkspaceManager(config=config, config_path=config_path)
         manager.create_job(client="Test", description="Thing")
@@ -244,6 +251,7 @@ class TestWorkspaceManager:
 
 # ──────────────────── Config tests ──────────────────────────────────
 
+
 class TestConfig:
     def test_default_config(self) -> None:
         config = Config()
@@ -252,7 +260,12 @@ class TestConfig:
         assert config.pricing.minimum_job_price == 150.0
 
     def test_save_and_load(self, tmp_path: Path) -> None:
-        config = Config(currency="EUR")
+        config = Config(
+            currency="EUR",
+            default_model="gpt-4.1",
+            model_pricing_path="C:/pricing.yaml",
+            usd_to_pln_rate=3.75,
+        )
         config.pricing.hourly_rate = 100.0
         path = tmp_path / "config.yaml"
         save_config(config, path)
@@ -260,6 +273,9 @@ class TestConfig:
         loaded = load_config(path)
         assert loaded.currency == "EUR"
         assert loaded.pricing.hourly_rate == 100.0
+        assert loaded.default_model == "gpt-4.1"
+        assert loaded.model_pricing_path == "C:/pricing.yaml"
+        assert loaded.usd_to_pln_rate == 3.75
 
     def test_next_job_id(self) -> None:
         config = Config()

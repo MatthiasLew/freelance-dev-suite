@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import datetime
-from dataclasses import dataclass, field, asdict
-from enum import Enum
+from dataclasses import asdict, dataclass, field
+from enum import StrEnum
 from typing import Any
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     """Lifecycle status of a freelance job."""
 
     LEAD = "LEAD"
@@ -23,7 +23,7 @@ class JobStatus(str, Enum):
     REJECTED = "REJECTED"
 
 
-class JobSource(str, Enum):
+class JobSource(StrEnum):
     """Where the job came from."""
 
     USEME = "Useme"
@@ -69,14 +69,15 @@ class Job:
 
     def change_status(self, new_status: str, note: str = "") -> None:
         """Transition to a new status and record the change."""
+        validated_status = JobStatus(new_status).value
         change = StatusChange(
             from_status=self.status,
-            to_status=new_status,
+            to_status=validated_status,
             timestamp=datetime.datetime.now().isoformat(),
             note=note,
         )
         self.status_history.append(change.to_dict())
-        self.status = new_status
+        self.status = validated_status
         self.updated_at = datetime.datetime.now().isoformat()
 
     def to_dict(self) -> dict[str, Any]:

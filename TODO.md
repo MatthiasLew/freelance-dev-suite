@@ -4,9 +4,15 @@
 
 - [x] freelance-workspace
 - [x] common CLI (`freelance job new`, `freelance jobs`, `freelance status`)
-- [ ] project-intake-analyzer
-- [ ] ai-cost-estimator
-- [ ] freelance-estimator
+- [x] project-intake-analyzer
+- [x] ai-cost-estimator
+- [x] freelance-estimator
+
+### MVP hardening follow-ups
+
+- [ ] replace bundled pricing snapshot with user-maintained/current provider data before quoting
+- [ ] calibrate estimation heuristics against completed freelance jobs
+- [ ] add wheel installation smoke test and CI workflow
 
 ## P1 — First clients
 

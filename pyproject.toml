@@ -37,6 +37,7 @@ dev = [
   "mypy>=1.11",
   "pytest>=8.3",
   "ruff>=0.6",
+  "types-PyYAML>=6.0",
 ]
 
 [project.scripts]
@@ -68,15 +69,17 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 python_version = "3.11"
 strict = true
 warn_unreachable = true
+mypy_path = ["src", "."]
+explicit_package_bases = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
-addopts = "-q"
+addopts = "-q -p no:pytest-qt"
 
 [tool.coverage.run]
 branch = true
-source = ["freelance_cli"]
+source = ["freelance_cli", "packages"]
 
 [tool.coverage.report]
 fail_under = 80

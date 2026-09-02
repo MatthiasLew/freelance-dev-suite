@@ -1,0 +1,4 @@
+[commands]
+test = "python -m pytest -p no:pytest-qt"
+lint = "python -m ruff check ."
+typecheck = "python -m mypy src packages"

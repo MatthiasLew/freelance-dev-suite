@@ -57,7 +57,7 @@ class WorkspaceManager:
 
     def list_jobs(self, include_finished: bool = False) -> list[Job]:
         """List all active jobs, optionally including finished ones."""
-        jobs = find_all_jobs(self.config.workspace_path)
+        jobs = find_all_jobs(self.config.workspace_path, include_finished=include_finished)
         if not include_finished:
             finished_statuses = {JobStatus.CLOSED.value, JobStatus.REJECTED.value}
             jobs = [j for j in jobs if j.status not in finished_statuses]
