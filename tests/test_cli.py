@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -58,6 +59,41 @@ class TestCLI:
         result = cli_runner.invoke(main, ["jobs"])
         assert result.exit_code == 0
         assert "JOB-001" in result.output
+        assert "-" * 90 in result.output
+        assert "\u2500" not in result.output
+
+    def test_configure_streams(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from freelance_cli.cli import _configure_streams
+
+        reconfigured: list[dict[str, str]] = []
+
+        class DummyStream:
+            def reconfigure(self, **kwargs: str) -> None:
+                reconfigured.append(kwargs)
+
+        dummy = DummyStream()
+        monkeypatch.setattr(sys, "stdout", dummy)
+        monkeypatch.setattr(sys, "stderr", dummy)
+        _configure_streams()
+        assert len(reconfigured) == 2
+        assert reconfigured[0] == {"encoding": "utf-8", "errors": "replace"}
+        assert reconfigured[1] == {"encoding": "utf-8", "errors": "replace"}
+
+    def test_jobs_with_cp1250_encoding(self) -> None:
+        import os
+        import subprocess
+
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "cp1250"
+        res = subprocess.run(
+            [sys.executable, "-m", "freelance_cli.cli", "jobs"],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        assert res.returncode == 0
+        assert "\u2500" not in res.stdout
 
     def test_status(self, cli_runner: CliRunner) -> None:
         cli_runner.invoke(

@@ -8,6 +8,7 @@ Usage:
 
 from __future__ import annotations
 
+import contextlib
 import sys
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,21 @@ def _get_manager() -> WorkspaceManager:
     return WorkspaceManager()
 
 
+def _configure_streams() -> None:
+    """Configure stdout and stderr to UTF-8 with replacement error handling.
+
+    Prevents UnicodeEncodeError on Windows default console code pages (e.g. CP1250, CP437).
+    """
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is not None and hasattr(stream, "reconfigure"):
+            with contextlib.suppress(Exception):
+                stream.reconfigure(encoding="utf-8", errors="replace")
+
+
+_configure_streams()
+
+
 # ──────────────────────────── Root group ────────────────────────────
 
 
@@ -31,6 +47,7 @@ def _get_manager() -> WorkspaceManager:
 @click.version_option(version=__version__, prog_name="freelance")
 def main() -> None:
     """Freelance Dev Suite — manage freelance jobs from intake to handoff."""
+    _configure_streams()
 
 
 # ──────────────────────────── Job group ─────────────────────────────
@@ -112,7 +129,7 @@ def jobs_list(show_all: bool) -> None:
 
     click.echo()
     click.secho(JobModel.summary_header(), bold=True)
-    click.echo("─" * 90)
+    click.echo("-" * 90)
     for j in jobs:
         # Color-code by status
         color = _status_color(j.status)
@@ -139,7 +156,7 @@ def status(job_id: str) -> None:
 
     click.echo()
     color = _status_color(found_job.status)
-    click.secho(f"── {found_job.id} ──", fg=color, bold=True)
+    click.secho(f"-- {found_job.id} --", fg=color, bold=True)
     click.echo()
     click.echo(found_job.detail_view())
 
@@ -267,11 +284,11 @@ def analyze(job_id: str, check_mode: str, json_output: bool) -> None:
 
     # Display results
     click.secho("PROJECT ANALYSIS", fg="cyan", bold=True)
-    click.echo("─" * 50)
+    click.echo("-" * 50)
     click.echo(intake.summary())
 
     click.secho("AI COST ESTIMATE", fg="cyan", bold=True)
-    click.echo("─" * 50)
+    click.echo("-" * 50)
     click.echo(ai_cost.summary())
 
     click.secho("✓ Analysis saved to workspace", fg="green")
@@ -343,7 +360,7 @@ def estimate(job_id: str, json_output: bool) -> None:
     # Display results
     click.echo()
     click.secho("QUOTE ESTIMATE", fg="cyan", bold=True)
-    click.echo("─" * 50)
+    click.echo("-" * 50)
     click.echo(quote.summary())
 
     # Budget check
@@ -552,7 +569,7 @@ def requirements(
         status_color = "magenta"
 
     click.secho(f"REQUIREMENTS SPECIFICATION — {job_id}", fg=status_color, bold=True)
-    click.echo("─" * 55)
+    click.echo("-" * 55)
     click.echo(spec.summary())
     click.echo()
     click.echo(f"  • Requirements spec: {req_md_path}")
@@ -569,7 +586,7 @@ def templates_list() -> None:
     tmpls = list_templates()
     click.echo()
     click.secho(f"{'TEMPLATE':<20} {'LANGUAGE':<10} {'DESCRIPTION'}", bold=True)
-    click.echo("─" * 80)
+    click.echo("-" * 80)
     for t in tmpls:
         click.echo(f"{t.name:<20} {t.language:<10} {t.description}")
     click.echo()
@@ -624,7 +641,7 @@ def bootstrap(
 
     click.echo()
     click.secho(f"✓ Project bootstrapped from {template_name}", fg="green", bold=True)
-    click.echo("─" * 55)
+    click.echo("-" * 55)
     click.echo(result.summary())
     click.echo()
 
@@ -719,7 +736,7 @@ def start_job(
 
     click.echo()
     click.secho(f"✓ Started {job_id} ({template_name})", fg="green", bold=True)
-    click.echo("─" * 55)
+    click.echo("-" * 55)
     click.echo(f"  Client:       {found_job.client}")
     click.echo(f"  Description:  {found_job.description}")
     click.echo(f"  Status:       {found_job.status}")
@@ -852,7 +869,7 @@ def handoff(
             fg="yellow",
             bold=True,
         )
-    click.echo("─" * 60)
+    click.echo("-" * 60)
     click.echo(report.summary())
     click.echo()
     click.secho("✓ Handoff deliverables created successfully:", fg="green", bold=True)
@@ -961,7 +978,7 @@ def finish(
 
     click.echo()
     click.secho(f"✓ Job {job_id} successfully closed!", fg="green", bold=True)
-    click.echo("─" * 55)
+    click.echo("-" * 55)
     click.echo(f"  Client:     {found_job.client}")
     click.echo(f"  Status:     {found_job.status}")
     if archived_path:
@@ -1044,7 +1061,7 @@ def bug_add(
 
     click.echo()
     click.secho(f"✓ Added bug report: {bug_report.id}", fg="green", bold=True)
-    click.echo("─" * 55)
+    click.echo("-" * 55)
     click.echo(f"  Title:     {bug_report.title}")
     click.echo(f"  Status:    {bug_report.status}")
     click.echo(f"  Severity:  {bug_report.severity}")
@@ -1092,7 +1109,7 @@ def bug_list(job_id: str, status_filter: str | None, json_output: bool) -> None:
 
     click.echo()
     click.secho(f"{'BUG ID':<10} {'STATUS':<18} {'SEVERITY':<10} {'TITLE'}", bold=True)
-    click.echo("─" * 75)
+    click.echo("-" * 75)
     for b in bugs:
         color = "red" if b.status == "NEEDS_INFO" else ("green" if b.status == "FIXED" else "white")
         click.secho(f"{b.id:<10} {b.status:<18} {b.severity:<10} {b.title}", fg=color)
@@ -1332,7 +1349,7 @@ def scope_check(
     else:
         click.secho(f"⚠ SCOPE ANALYSIS — {change_item.id}: OUT_OF_SCOPE", fg="yellow", bold=True)
 
-    click.echo("─" * 65)
+    click.echo("-" * 65)
     click.echo(f"  Classification:     {change_item.classification}")
     click.echo(f"  Additional Hours:   {change_item.estimated_additional_hours:.1f}h")
     click.echo(f"  Estimated AI Cost:  ~{change_item.estimated_ai_cost_pln:.2f} PLN")
@@ -1377,7 +1394,7 @@ def scope_list(job_id: str, json_output: bool) -> None:
         f"{'CHANGE ID':<12} {'CLASSIFICATION':<18} {'HOURS':<8} {'SURCHARGE':<12} {'REQUEST'}",
         bold=True,
     )
-    click.echo("─" * 80)
+    click.echo("-" * 80)
     for c in changes:
         req_snippet = c.requested_text[:35] + ("..." if len(c.requested_text) > 35 else "")
         click.echo(
@@ -1605,7 +1622,7 @@ def timer_log(job_id: str, json_output: bool) -> None:
     click.secho(f"TIME LOG — {job_id}", bold=True)
     mins = time_log.total_duration_minutes
     click.echo(f"Total Logged: {time_log.total_duration_hours:.2f}h ({mins:.1f} mins)")
-    click.echo("─" * 65)
+    click.echo("-" * 65)
 
     if not time_log.entries:
         click.echo("No completed time sessions logged.")
@@ -1729,7 +1746,7 @@ def calibrate(json_output: bool) -> None:
 
     click.echo()
     click.secho("ESTIMATOR CALIBRATION & HISTORICAL ACCURACY", bold=True)
-    click.echo("─" * 60)
+    click.echo("-" * 60)
     click.echo(f"  Jobs Analyzed:          {result['jobs_analyzed']}")
     click.echo(f"  Total Estimated Hours:  {result['total_estimated_hours']:.1f}h")
     click.echo(f"  Total Actual Hours:     {result['total_actual_hours']:.1f}h")
@@ -1794,9 +1811,9 @@ def message(
 
     click.echo()
     click.secho(f"CLIENT MESSAGE DRAFT [{msg.stage.upper()}]", bold=True, fg="cyan")
-    click.echo("─" * 65)
+    click.echo("-" * 65)
     click.echo(msg.to_markdown())
-    click.echo("─" * 65)
+    click.echo("-" * 65)
     click.echo()
 
 
@@ -1866,7 +1883,7 @@ def pricing(
     click.echo()
     click.secho("CONFIGURED AI MODEL PRICING (USD / 1M tokens)", bold=True)
     click.echo(f"{'MODEL':<22} {'INPUT ($/M)':<15} {'OUTPUT ($/M)':<15}")
-    click.echo("─" * 52)
+    click.echo("-" * 52)
     for name, m in sorted(models.items()):
         click.echo(f"{name:<22} ${m.input_per_million:<14.2f} ${m.output_per_million:<14.2f}")
     click.echo()

@@ -74,12 +74,12 @@ class QualityGateReport:
             f"Time:     {self.timestamp}",
             "",
             f"{'CHECK':<28} {'STATUS':<10} {'DETAILS'}",
-            "─" * 75,
+            "-" * 75,
         ]
         for c in self.checks:
             lines.append(f"{c.name:<28} {c.status:<10} {c.details}")
 
-        lines.append("─" * 75)
+        lines.append("-" * 75)
         lines.append(f"OVERALL QUALITY GATE STATUS: {self.overall_status}")
 
         # List problems if any
