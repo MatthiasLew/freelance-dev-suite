@@ -157,6 +157,8 @@ class TestHandoffPackager:
         (project_dir / "src").mkdir()
         (project_dir / "src" / "app.py").write_text("print('hello')", encoding="utf-8")
         (project_dir / ".env").write_text("SECRET=12345", encoding="utf-8")
+        (project_dir / ".env.local").write_text("SECRET=local", encoding="utf-8")
+        (project_dir / ".env.production").write_text("SECRET=prod", encoding="utf-8")
         (project_dir / ".env.example").write_text("SECRET=", encoding="utf-8")
 
         output_dir = tmp_path / "handoff"
@@ -192,7 +194,13 @@ class TestHandoffPackager:
             namelist = zf.namelist()
             assert any("app.py" in n for n in namelist)
             assert any(".env.example" in n for n in namelist)
-            assert not any(n == ".env" or n.endswith("/.env") for n in namelist)
+            assert not any(
+                n == ".env"
+                or n.endswith("/.env")
+                or n.endswith(".env.local")
+                or n.endswith(".env.production")
+                for n in namelist
+            )
 
 
 class TestHandoffCLI:

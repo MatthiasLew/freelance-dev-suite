@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -194,6 +195,13 @@ def parse_dependencies(project_path: str, package_managers: list[str]) -> int:
     """Count declared dependencies without double-counting identical names."""
     root = Path(project_path)
     dependencies: set[str] = set()
+
+    def dependency_name(value: object) -> str:
+        """Return the normalized distribution name from a requirement string."""
+        requirement = str(value).strip()
+        name = re.split(r"[\s<>=!~;\[]", requirement, maxsplit=1)[0]
+        return name.lower().replace("_", "-")
+
     package_json = root / "package.json"
     if package_json.exists() and {"npm", "yarn", "pnpm"}.intersection(package_managers):
         try:
@@ -207,11 +215,13 @@ def parse_dependencies(project_path: str, package_managers: list[str]) -> int:
         try:
             data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
             for value in data.get("project", {}).get("dependencies", []):
-                dependencies.add(str(value).split("[", 1)[0].split(" ", 1)[0].lower())
+                if name := dependency_name(value):
+                    dependencies.add(name)
             optional = data.get("project", {}).get("optional-dependencies", {})
             for values in optional.values():
                 for value in values:
-                    dependencies.add(str(value).split("[", 1)[0].split(" ", 1)[0].lower())
+                    if name := dependency_name(value):
+                        dependencies.add(name)
             dependencies.update(data.get("tool", {}).get("poetry", {}).get("dependencies", {}))
         except (OSError, tomllib.TOMLDecodeError, TypeError, AttributeError):
             pass
@@ -220,8 +230,12 @@ def parse_dependencies(project_path: str, package_managers: list[str]) -> int:
         try:
             for line in requirements.read_text(encoding="utf-8").splitlines():
                 clean = line.strip()
-                if clean and not clean.startswith(("#", "-")):
-                    dependencies.add(clean.split("[", 1)[0].split("=", 1)[0].lower())
+                if (
+                    clean
+                    and not clean.startswith(("#", "-"))
+                    and (name := dependency_name(clean))
+                ):
+                    dependencies.add(name)
         except OSError:
             pass
     return len(dependencies)

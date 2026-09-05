@@ -7,7 +7,9 @@ Each job is stored as a `job.json` file inside its workspace directory:
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -28,8 +30,11 @@ def job_dir_name(job: Job) -> str:
 
 def save_job(job: Job, workspace_root: Path) -> Path:
     """Save a job to its workspace directory. Returns the job directory path."""
-    active_dir = workspace_root / "active"
-    job_dir = active_dir / job_dir_name(job)
+    # Preserve the current lifecycle location.  Re-saving a job found under
+    # ``finished`` must not silently create a second, active copy of it.
+    job_dir = find_job_dir(job.id, workspace_root)
+    if job_dir is None:
+        job_dir = workspace_root / "active" / job_dir_name(job)
     job_dir.mkdir(parents=True, exist_ok=True)
 
     # Create standard subdirectories
@@ -38,8 +43,25 @@ def save_job(job: Job, workspace_root: Path) -> Path:
 
     # Write job metadata
     job_path = job_dir / "job.json"
-    with open(job_path, "w", encoding="utf-8") as f:
-        json.dump(job.to_dict(), f, indent=2, ensure_ascii=False)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=job_dir,
+            prefix=".job-",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            json.dump(job.to_dict(), temporary, indent=2, ensure_ascii=False)
+            temporary.write("\n")
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_path = Path(temporary.name)
+        os.replace(temporary_path, job_path)
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            temporary_path.unlink()
 
     return job_dir
 

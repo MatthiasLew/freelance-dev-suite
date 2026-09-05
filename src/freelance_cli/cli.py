@@ -17,6 +17,7 @@ import click
 
 from freelance_cli import __version__
 from freelance_cli.models.job import JobSource, JobStatus
+from freelance_cli.work_commands import work
 from packages.workspace.manager import WorkspaceManager
 
 
@@ -1907,6 +1908,9 @@ def _status_color(status: str) -> str:
         "REJECTED": "red",
     }
     return color_map.get(status, "white")
+
+
+main.add_command(work)
 
 
 if __name__ == "__main__":

@@ -32,3 +32,12 @@
 - [x] estimator learning
 - [x] portfolio generator
 - [x] client communication helper
+
+## P4 — Repository-backed delivery workflow
+
+- [x] resumable `freelance work` sessions
+- [x] scope and requirement linkage for development tasks
+- [x] incremental `ai-dev task` preparation and changed-file validation
+- [x] provider-reported token and AI-cost accounting
+- [x] measured work-session costs in profitability reports
+- [x] Linux and Windows CI matrix

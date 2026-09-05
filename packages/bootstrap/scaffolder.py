@@ -91,31 +91,46 @@ class ProjectScaffolder:
             git_exe = shutil.which("git")
             if git_exe:
                 try:
-                    subprocess.run(
+                    init_result = subprocess.run(
                         [git_exe, "init", "-b", "master"],
                         cwd=target_dir,
                         capture_output=True,
+                        text=True,
                         check=False,
                     )
-                    subprocess.run(
-                        [git_exe, "add", "."],
-                        cwd=target_dir,
-                        capture_output=True,
-                        check=False,
-                    )
-                    subprocess.run(
-                        [
-                            git_exe,
-                            "commit",
-                            "-m",
-                            f"feat: initial project bootstrap ({tmpl.name})",
-                        ],
-                        cwd=target_dir,
-                        capture_output=True,
-                        check=False,
-                    )
-                    git_initialized = True
-                except Exception as exc:
+                    if init_result.returncode != 0:
+                        detail = init_result.stderr.strip() or "unknown error"
+                        issues.append(f"Git init failed: {detail}")
+                    else:
+                        add_result = subprocess.run(
+                            [git_exe, "add", "."],
+                            cwd=target_dir,
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                        )
+                        commit_result = subprocess.run(
+                            [
+                                git_exe,
+                                "commit",
+                                "-m",
+                                f"feat: initial project bootstrap ({tmpl.name})",
+                            ],
+                            cwd=target_dir,
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                        )
+                        git_initialized = (
+                            add_result.returncode == 0 and commit_result.returncode == 0
+                        )
+                        if add_result.returncode != 0:
+                            detail = add_result.stderr.strip() or "unknown error"
+                            issues.append(f"Git add failed: {detail}")
+                        if commit_result.returncode != 0:
+                            detail = commit_result.stderr.strip() or "unknown error"
+                            issues.append(f"Git commit failed: {detail}")
+                except OSError as exc:
                     issues.append(f"Git init error: {exc}")
             else:
                 issues.append("git command not found on PATH; skipped git init")

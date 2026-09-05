@@ -320,6 +320,19 @@ def test_parse_pep621_dependencies(tmp_path: Path) -> None:
     assert parse_dependencies(str(tmp_path), ["pip/pyproject"]) == 3
 
 
+def test_parse_dependencies_deduplicates_version_constraints(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\ndependencies = ["requests>=2", "requests<3", "my_pkg[cli]~=1.2"]\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "requirements.txt").write_text(
+        "requests==2.32\nmy-pkg!=1.3\n",
+        encoding="utf-8",
+    )
+
+    assert parse_dependencies(str(tmp_path), ["pip/pyproject"]) == 2
+
+
 def test_analyze_project_uses_current_ai_dev_contract(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

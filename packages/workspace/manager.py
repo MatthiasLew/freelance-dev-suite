@@ -41,6 +41,8 @@ class WorkspaceManager:
     ) -> Job:
         """Create a new job and save it to the workspace."""
         job_id = self.config.next_job_id()
+        while find_job_by_id(job_id, self.config.workspace_path) is not None:
+            job_id = self.config.next_job_id()
         job = Job(
             id=job_id,
             client=client,

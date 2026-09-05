@@ -36,16 +36,27 @@ class ProfitabilityCalculator:
             except (OSError, json.JSONDecodeError):
                 pass
 
-        # 2. AI Costs from ai-cost.json
+        # 2. Prefer measured work-session costs. Fall back to the intake estimate
+        # only for jobs that do not have work-session telemetry yet.
+        session_files = list((job_dir / "work" / "sessions").glob("WORK-*.json"))
         ai_costs = 0.0
-        ai_cost_file = job_dir / "analysis" / "ai-cost.json"
-        if ai_cost_file.exists():
+        if session_files:
+            for session_file in session_files:
+                try:
+                    with open(session_file, encoding="utf-8") as f:
+                        session_data = json.load(f)
+                    ai_costs += float(session_data.get("ai_cost_pln", 0.0))
+                except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                    continue
+        else:
+            ai_cost_file = job_dir / "analysis" / "ai-cost.json"
             try:
-                with open(ai_cost_file, encoding="utf-8") as f:
-                    cost_data = json.load(f)
-                ai_costs = float(cost_data.get("estimated_cost_pln", 0.0))
-            except (OSError, json.JSONDecodeError):
-                pass
+                if ai_cost_file.exists():
+                    with open(ai_cost_file, encoding="utf-8") as f:
+                        cost_data = json.load(f)
+                    ai_costs = float(cost_data.get("estimated_cost_pln", 0.0))
+            except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                ai_costs = 0.0
 
         # 3. Tracked Time from time-log.json
         time_log_file = job_dir / "work" / "time-log.json"

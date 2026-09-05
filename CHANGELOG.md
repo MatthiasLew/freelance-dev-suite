@@ -4,6 +4,11 @@
 
 ### Added
 
+- Repository-backed `freelance work` workflow with `start`, `status`, `finish`, `resume`, and `list`
+  commands, resumable context fingerprints, scope linkage, timer integration, validation state, and
+  provider-reported token/cost accounting.
+- Atomic work-session persistence and regression coverage for the complete work lifecycle.
+- Windows jobs in the Python 3.11-3.13 CI matrix.
 - Client communication module (`packages/communication`) with `MessageGenerator` creating tailored client messages across all project lifecycle stages (`intake`, `quote`, `update`, `demo`, `delivery`, `reminder`, `scope-notice`) with multi-language support (Polish and English).
 - Dynamic AI model pricing management and YAML persistence in `packages/ai_cost/pricing.py`.
 - CLI commands `freelance message <JOB-ID> <STAGE>` and `freelance pricing`.
@@ -36,6 +41,12 @@
 
 ### Fixed
 
+- Job metadata is written atomically, stale counters cannot silently reuse an existing `JOB-ID`, and
+  updating archived jobs no longer creates an active duplicate.
+- Handoff archives exclude dotenv secrets and symbolic links.
+- Dependency counting normalizes requirement operators and duplicate constraints.
+- Git scaffolding reports failed initialization, staging, or initial commit instead of a false success.
+- Profitability reports prefer measured work-session AI costs over intake estimates.
 - Intake no longer silently reports missing capabilities when `ai-dev` is unavailable.
 - Repository maps use the current `file_count_scanned` field.
 - PEP 621 dependencies are counted.

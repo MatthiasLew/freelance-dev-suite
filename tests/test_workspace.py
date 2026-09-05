@@ -237,6 +237,23 @@ class TestWorkspaceManager:
         assert updated is not None
         assert updated.status == "ANALYSIS"
 
+    def test_update_archived_job_does_not_duplicate_it(
+        self, tmp_config: tuple[Config, Path]
+    ) -> None:
+        config, config_path = tmp_config
+        manager = WorkspaceManager(config=config, config_path=config_path)
+        manager.create_job(client="Test", description="Archived task")
+        archived_path = manager.archive_job("JOB-001")
+
+        updated = manager.update_job_status("JOB-001", "CLOSED", "Accepted")
+
+        assert archived_path is not None
+        assert updated is not None
+        assert updated.status == "CLOSED"
+        assert not list(config.active_dir.iterdir())
+        assert len(manager.list_jobs(include_finished=True)) == 1
+        assert load_job(archived_path / "job.json").status == "CLOSED"
+
     def test_counter_persists(self, tmp_config: tuple[Config, Path]) -> None:
         config, config_path = tmp_config
         manager = WorkspaceManager(config=config, config_path=config_path)
@@ -247,6 +264,20 @@ class TestWorkspaceManager:
         manager2 = WorkspaceManager(config=config2, config_path=config_path)
         j2 = manager2.create_job(client="B", description="Task B")
         assert j2.id == "JOB-002"
+
+    def test_stale_counter_does_not_reuse_existing_job_id(
+        self, tmp_config: tuple[Config, Path]
+    ) -> None:
+        config, config_path = tmp_config
+        manager = WorkspaceManager(config=config, config_path=config_path)
+        manager.create_job(client="A", description="Existing")
+
+        stale = Config(workspace_root=config.workspace_root, job_counter=0)
+        recovered = WorkspaceManager(config=stale, config_path=config_path)
+        created = recovered.create_job(client="B", description="New")
+
+        assert created.id == "JOB-002"
+        assert len(recovered.list_jobs(include_finished=True)) == 2
 
 
 # ──────────────────── Config tests ──────────────────────────────────

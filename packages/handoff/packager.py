@@ -242,14 +242,18 @@ Application behavior can be customized via `.env` file settings and command-line
         """Create clean zip file of project directory, skipping temp files and secrets."""
         with zipfile.ZipFile(zip_dest, "w", zipfile.ZIP_DEFLATED) as zf:
             for file_path in project_dir.rglob("*"):
-                if not file_path.is_file():
+                # Never follow links into files outside the repository.  A
+                # release archive should contain regular project files only.
+                if file_path.is_symlink() or not file_path.is_file():
                     continue
                 rel = file_path.relative_to(project_dir)
                 # Skip ignored folders
                 if any(part in IGNORED_DIRECTORIES for part in rel.parts):
                     continue
-                # Skip actual .env files (keep .env.example)
-                if file_path.name == ".env":
+                # Skip dotenv files that may contain credentials, while
+                # retaining clearly marked templates for client setup.
+                dotenv_templates = {".env.example", ".env.sample", ".env.template"}
+                if file_path.name.startswith(".env") and file_path.name not in dotenv_templates:
                     continue
                 # Skip zip if inside project_dir
                 if file_path.resolve() == zip_dest.resolve():

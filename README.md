@@ -38,6 +38,11 @@ freelance jobs
 
 # Check job status
 freelance status JOB-001
+
+# Start and finish real repository work
+freelance work start JOB-001 --task "Implement invoice export" --agent codex --model gpt-5.6-sol
+freelance work status JOB-001
+freelance work finish WORK-0001
 ```
 
 ## Commands
@@ -74,6 +79,11 @@ freelance status JOB-001
 | `freelance calibrate` | Calculate historical estimation accuracy & multiplier recommendations | ✅ implemented |
 | `freelance message <JOB-ID> <STAGE>` | Generate tailored client messages for all project stages (PL/EN) | ✅ implemented |
 | `freelance pricing` | Inspect or dynamically update AI model pricing table | ✅ implemented |
+| `freelance work start <JOB-ID> --task <TASK>` | Check scope, prepare incremental ai-dev context, and start time tracking | ✅ implemented |
+| `freelance work status <JOB-ID>` | Show the current task, elapsed time, AI usage, model, and validation | ✅ implemented |
+| `freelance work finish <WORK-ID>` | Run changed-file validation, stop time tracking, and record actual AI usage | ✅ implemented |
+| `freelance work resume <WORK-ID>` | Resume a `NEEDS_FIX` session with acknowledged incremental context | ✅ implemented |
+| `freelance work list <JOB-ID>` | List the complete development-session history for a job | ✅ implemented |
 
 ## Integration with ai-dev-cli-tools
 
@@ -104,6 +114,38 @@ freelance analyze JOB-001 --json
 freelance estimate JOB-001 --json
 ```
 
+### Repository-backed work sessions
+
+`freelance work` is the bridge between the business record and actual repository work. A session is
+stored under `<job>/work/sessions/WORK-NNNN.json` and records its task, scope classification, related
+requirements, timer segments, agent/model, provider-reported token usage, cost, and validation result.
+
+```bash
+freelance work start JOB-001 \
+  --task "Add CSV invoice export" \
+  --agent codex \
+  --model gpt-5.6-sol \
+  --requirement REQ-7
+
+freelance work status JOB-001
+freelance work finish WORK-0001
+
+# When validation produces NEEDS_FIX:
+freelance work resume WORK-0001
+freelance work finish WORK-0001
+
+freelance work list JOB-001 --json
+```
+
+At start, the command uses `ai-dev task` with an adaptive incremental context and saves its state
+fingerprint. Resume sends that fingerprint back as acknowledged state, avoiding a blind full-project
+reload while still accounting for repository changes. Finish uses `ai-dev check --mode changed`; the
+engine may conservatively expand validation when its dependency mapping is uncertain.
+
+Token and cost fields contain only provider-reported telemetry recorded by `ai-dev-cli-tools` during
+the session. If telemetry contains tokens but no priced cost, the configured model pricing snapshot
+is used. Missing telemetry remains zero instead of being presented as measured usage.
+
 ## Pricing configuration
 
 Provider prices and the USD/PLN rate are assumptions, not live market data. The package contains a
@@ -125,7 +167,7 @@ input, and optional reasoning prices per million tokens.
 ## Architecture
 
 ```
-ZLECENIE → intake → estimate → requirements → bootstrap → IMPLEMENTACJA → handoff → DONE
+ZLECENIE → intake → estimate → requirements → bootstrap → work → handoff → DONE
 ```
 
 Freelance Dev Suite is the **business/workflow layer** on top of `ai-dev-cli-tools` (technical engine).
