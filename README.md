@@ -175,6 +175,30 @@ ZLECENIE → intake → estimate → requirements → bootstrap → work → han
 
 Freelance Dev Suite is the **business/workflow layer** on top of `ai-dev-cli-tools` (technical engine).
 
+The boundary is intentional:
+
+| Responsibility | Owner |
+|---|---|
+| Client, scope, pricing, time, profitability, handoff, and job records | `freelance-dev-suite` |
+| Repository discovery, context selection, validation, technical telemetry, and environment bootstrap | `ai-dev-cli-tools` |
+| Connecting a business work session to repository validation | `freelance work` adapter |
+
+This repository does not implement a second repository scanner, context builder, test selector, or
+telemetry collector. It calls the public `ai-dev` CLI contract and stores only the resulting business
+evidence.
+
+## Releases
+
+CI tests Linux and Windows on Python 3.11-3.13, installs the built wheel in an isolated environment,
+runs a full job lifecycle against `ai-dev-cli-tools`, and scans Git history with Gitleaks. A tag named
+`vMAJOR.MINOR.PATCH` starts `.github/workflows/release.yml`, verifies that the tag matches
+`pyproject.toml`, builds and tests the distributions, publishes to PyPI with Trusted Publishing, and
+creates a GitHub release.
+
+Before the first tag, configure a PyPI Trusted Publisher for this repository, workflow
+`release.yml`, and environment `pypi`. Publishing is intentionally not attempted from developer
+machines or with a long-lived API token.
+
 ## License
 
 MIT

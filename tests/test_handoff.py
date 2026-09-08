@@ -361,7 +361,7 @@ class TestHandoffCLI:
         finished_job = json.loads(
             (archived_dir / "job.json").read_text(encoding="utf-8")
         )
-        assert finished_job["status"] == "DELIVERED"
+        assert finished_job["status"] == "CLOSED"
         assert "Client accepted delivery" in finished_job["notes"]
 
     def test_handoff_blocked_without_force(self, cli_runner: CliRunner) -> None:

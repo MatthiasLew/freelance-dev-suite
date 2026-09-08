@@ -7,13 +7,12 @@ Each job is stored as a `job.json` file inside its workspace directory:
 from __future__ import annotations
 
 import json
-import os
 import re
-import tempfile
 from pathlib import Path
 from typing import Any
 
 from freelance_cli.models.job import Job
+from packages.storage_utils import atomic_write_text
 
 
 def _slugify(text: str, max_len: int = 30) -> str:
@@ -43,25 +42,7 @@ def save_job(job: Job, workspace_root: Path) -> Path:
 
     # Write job metadata
     job_path = job_dir / "job.json"
-    temporary_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w",
-            encoding="utf-8",
-            dir=job_dir,
-            prefix=".job-",
-            suffix=".tmp",
-            delete=False,
-        ) as temporary:
-            json.dump(job.to_dict(), temporary, indent=2, ensure_ascii=False)
-            temporary.write("\n")
-            temporary.flush()
-            os.fsync(temporary.fileno())
-            temporary_path = Path(temporary.name)
-        os.replace(temporary_path, job_path)
-    finally:
-        if temporary_path is not None and temporary_path.exists():
-            temporary_path.unlink()
+    atomic_write_text(job_path, json.dumps(job.to_dict(), indent=2, ensure_ascii=False) + "\n")
 
     return job_dir
 
@@ -152,4 +133,3 @@ def archive_job(job_id: str, workspace_root: Path) -> Path | None:
             job_dir.rename(dest)
             return dest
     return None
-

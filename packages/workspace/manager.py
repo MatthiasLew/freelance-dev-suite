@@ -6,6 +6,7 @@ from pathlib import Path
 
 from freelance_cli.config import Config, load_config, save_config
 from freelance_cli.models.job import Job, JobSource, JobStatus
+from packages.storage_utils import storage_lock
 from packages.workspace.storage import (
     archive_job,
     find_all_jobs,
@@ -44,23 +45,25 @@ class WorkspaceManager:
         notes: str = "",
     ) -> Job:
         """Create a new job and save it to the workspace."""
-        job_id = self.config.next_job_id()
-        while find_job_by_id(job_id, self.config.workspace_path) is not None:
+        lock_path = self.config.workspace_path / ".locks" / "jobs.lock"
+        with storage_lock(lock_path):
             job_id = self.config.next_job_id()
-        job = Job(
-            id=job_id,
-            client=client,
-            description=description,
-            source=source,
-            status=JobStatus.LEAD.value,
-            budget_pln=budget_pln,
-            deadline=deadline,
-            repository=repository,
-            notes=notes,
-        )
-        save_job(job, self.config.workspace_path)
-        if self._persist_config:
-            save_config(self.config, self.config_path)
+            while find_job_by_id(job_id, self.config.workspace_path) is not None:
+                job_id = self.config.next_job_id()
+            job = Job(
+                id=job_id,
+                client=client,
+                description=description,
+                source=source,
+                status=JobStatus.LEAD.value,
+                budget_pln=budget_pln,
+                deadline=deadline,
+                repository=repository,
+                notes=notes,
+            )
+            save_job(job, self.config.workspace_path)
+            if self._persist_config:
+                save_config(self.config, self.config_path)
         return job
 
     def list_jobs(self, include_finished: bool = False) -> list[Job]:
@@ -91,4 +94,3 @@ class WorkspaceManager:
     def archive_job(self, job_id: str) -> Path | None:
         """Move a job to the finished directory."""
         return archive_job(job_id, self.config.workspace_path)
-

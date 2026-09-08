@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -183,6 +184,22 @@ class TestStorage:
 
 
 class TestWorkspaceManager:
+    def test_concurrent_managers_allocate_unique_job_ids(
+        self, tmp_workspace: Path, tmp_path: Path
+    ) -> None:
+        config_path = tmp_path / "shared-config.yaml"
+        save_config(Config(workspace_root=str(tmp_workspace)), config_path)
+
+        def create(index: int) -> str:
+            manager = WorkspaceManager(config=load_config(config_path), config_path=config_path)
+            return manager.create_job(client=f"Client {index}", description="Concurrent").id
+
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            ids = list(executor.map(create, range(12)))
+
+        assert len(ids) == len(set(ids)) == 12
+        assert {job.id for job in find_all_jobs(tmp_workspace)} == set(ids)
+
     def test_in_memory_config_does_not_overwrite_default_config(
         self, tmp_workspace: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

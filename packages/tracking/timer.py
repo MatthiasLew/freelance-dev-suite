@@ -6,6 +6,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from packages.storage_utils import atomic_write_text, storage_lock
+
 from .models import TimeEntry, TimeLog
 
 
@@ -31,9 +33,8 @@ class TimeTracker:
         work_dir.mkdir(parents=True, exist_ok=True)
 
         log_path = work_dir / "time-log.json"
-        log_path.write_text(
-            json.dumps(time_log.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        atomic_write_text(
+            log_path, json.dumps(time_log.to_dict(), indent=2, ensure_ascii=False) + "\n"
         )
         return log_path
 
@@ -44,21 +45,20 @@ class TimeTracker:
         activity: str = "development",
     ) -> TimeEntry:
         """Start a new active timer session for a job."""
-        time_log = self.get_time_log(job_dir, job_id)
+        with storage_lock(job_dir / "work" / ".time-log.lock"):
+            time_log = self.get_time_log(job_dir, job_id)
+            if time_log.active_entry:
+                return time_log.active_entry
 
-        if time_log.active_entry:
-            # If already running, return existing active entry
-            return time_log.active_entry
-
-        entry_id = f"SESSION-{len(time_log.entries) + 1:03d}"
-        entry = TimeEntry(
-            id=entry_id,
-            job_id=job_id,
-            activity=activity,
-            start_time=datetime.now().astimezone().isoformat(),
-        )
-        time_log.active_entry = entry
-        self.save_time_log(time_log, job_dir)
+            entry_id = f"SESSION-{len(time_log.entries) + 1:03d}"
+            entry = TimeEntry(
+                id=entry_id,
+                job_id=job_id,
+                activity=activity,
+                start_time=datetime.now().astimezone().isoformat(),
+            )
+            time_log.active_entry = entry
+            self.save_time_log(time_log, job_dir)
         return entry
 
     def stop_timer(
@@ -68,26 +68,27 @@ class TimeTracker:
         note: str = "",
     ) -> TimeEntry:
         """Stop current active work session and record elapsed duration."""
-        time_log = self.get_time_log(job_dir, job_id)
+        with storage_lock(job_dir / "work" / ".time-log.lock"):
+            time_log = self.get_time_log(job_dir, job_id)
 
-        if not time_log.active_entry:
-            raise ValueError(f"No active timer running for job {job_id}.")
+            if not time_log.active_entry:
+                raise ValueError(f"No active timer running for job {job_id}.")
 
-        entry = time_log.active_entry
-        end_dt = datetime.now().astimezone()
-        entry.end_time = end_dt.isoformat()
+            entry = time_log.active_entry
+            end_dt = datetime.now().astimezone()
+            entry.end_time = end_dt.isoformat()
 
-        try:
-            start_dt = datetime.fromisoformat(entry.start_time)
-            duration_secs = max(0.0, (end_dt - start_dt).total_seconds())
-            entry.duration_minutes = round(duration_secs / 60.0, 2)
-        except (ValueError, TypeError):
-            entry.duration_minutes = 0.0
+            try:
+                start_dt = datetime.fromisoformat(entry.start_time)
+                duration_secs = max(0.0, (end_dt - start_dt).total_seconds())
+                entry.duration_minutes = round(duration_secs / 60.0, 2)
+            except (ValueError, TypeError):
+                entry.duration_minutes = 0.0
 
-        if note:
-            entry.note = note
+            if note:
+                entry.note = note
 
-        time_log.entries.append(entry)
-        time_log.active_entry = None
-        self.save_time_log(time_log, job_dir)
+            time_log.entries.append(entry)
+            time_log.active_entry = None
+            self.save_time_log(time_log, job_dir)
         return entry

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
+
+from packages.storage_utils import atomic_write_text
 
 from .models import WorkSession, WorkStatus
 
@@ -21,12 +22,7 @@ def save_work_session(session: WorkSession, job_dir: Path) -> Path:
     directory = sessions_dir(job_dir)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{session.id}.json"
-    temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(
-        json.dumps(session.to_dict(), indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
-    os.replace(temporary, path)
+    atomic_write_text(path, json.dumps(session.to_dict(), indent=2, ensure_ascii=False) + "\n")
     return path
 
 

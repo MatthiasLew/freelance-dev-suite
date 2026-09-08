@@ -4,6 +4,13 @@
 
 ### Added
 
+- Automatic tag-based PyPI Trusted Publishing and GitHub release workflow.
+- Installed-wheel smoke test, Gitleaks history scan, and full installed job-lifecycle CI test using
+  the real `ai-dev-cli-tools` integration.
+- Interprocess locks and durable atomic writes for job IDs, work IDs, timers, bugs, scope changes,
+  configuration, and business records.
+- Dedicated CLI modules for jobs, requirements, handoff, bugs, scope, tracking, and work sessions.
+- Explicit architecture ownership boundary preventing duplicated repository analysis and telemetry.
 - Repository-backed `freelance work` workflow with `start`, `status`, `finish`, `resume`, and `list`
   commands, resumable context fingerprints, scope linkage, timer integration, validation state, and
   provider-reported token/cost accounting.
@@ -41,6 +48,8 @@
 
 ### Fixed
 
+- `freelance finish` now persists the terminal `CLOSED` status it promises instead of leaving an
+  archived job in `DELIVERED`.
 - Installation documentation no longer claims an unpublished PyPI distribution is available.
 - Caller-supplied in-memory workspace configurations no longer overwrite the user's global
   `~/.freelance/config.yaml` when creating a job.

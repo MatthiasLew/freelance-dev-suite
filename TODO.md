@@ -13,6 +13,12 @@
 - [x] replace bundled pricing snapshot with user-maintained/current provider data before quoting
 - [x] calibrate estimation heuristics against completed freelance jobs
 - [x] add wheel installation smoke test and CI workflow
+- [x] add interprocess persistence locks and durable atomic writes
+- [x] add full installed lifecycle coverage with `ai-dev-cli-tools`
+- [x] add repository-history secret scanning
+- [x] add tag-based Trusted Publishing and GitHub releases
+- [x] split the CLI entrypoint into command-family modules
+- [ ] configure the PyPI Trusted Publisher before creating the first release tag
 
 ## P1 — First clients
 

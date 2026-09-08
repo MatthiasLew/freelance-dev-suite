@@ -12,6 +12,7 @@ from freelance_cli.config import Config
 from packages.intake.analyzer import _run_ai_dev
 from packages.requirements.models import RequirementsSpec
 from packages.scope.detector import ScopeChangeDetector
+from packages.storage_utils import storage_lock
 from packages.tracking.timer import TimeTracker
 from packages.workspace.manager import WorkspaceManager
 
@@ -63,9 +64,7 @@ class WorkManager:
             raise ValueError("Work task cannot be empty.")
         existing = active_work_session(job_dir)
         if existing:
-            raise ValueError(
-                f"{job.id} already has active session {existing.id}; finish it first."
-            )
+            raise ValueError(f"{job.id} already has active session {existing.id}; finish it first.")
 
         time_log = self.timer.get_time_log(job_dir, job.id)
         if time_log.active_entry:
@@ -74,15 +73,16 @@ class WorkManager:
             )
 
         specification = self._load_requirements(job_dir)
-        change_id = self.scope.next_change_id(job_dir)
-        scope_item = self.scope.analyze_request(
-            job_id=job.id,
-            change_id=change_id,
-            requested_text=task,
-            requirements_spec=specification,
-            hourly_rate_pln=self.workspace.config.pricing.hourly_rate,
-        )
-        self.scope.save_change(scope_item, job_dir)
+        with storage_lock(job_dir / "work" / "scope" / ".scope.lock"):
+            change_id = self.scope.next_change_id(job_dir)
+            scope_item = self.scope.analyze_request(
+                job_id=job.id,
+                change_id=change_id,
+                requested_text=task,
+                requirements_spec=specification,
+                hourly_rate_pln=self.workspace.config.pricing.hourly_rate,
+            )
+            self.scope.save_change(scope_item, job_dir)
 
         baseline = self._telemetry_snapshot(repository)
         client = agent if agent in {"codex", "claude", "cursor", "generic"} else "generic"
@@ -107,23 +107,24 @@ class WorkManager:
         state = prepared.get("summary", {}).get("state", {})
         fingerprint = state.get("fingerprint") if isinstance(state, dict) else None
         now = datetime.now().astimezone().isoformat()
-        session = WorkSession(
-            id=next_work_id(self.workspace.config.workspace_path),
-            job_id=job.id,
-            task=task.strip(),
-            repository=str(repository),
-            agent=agent,
-            model=model or self.workspace.config.default_model,
-            related_requirements=requirements,
-            scope_classification=scope_item.classification,
-            scope_change_id=scope_item.id,
-            timer_entry_ids=[timer_entry.id],
-            context_fingerprint=str(fingerprint) if fingerprint else None,
-            telemetry_baseline=baseline,
-            started_at=now,
-            updated_at=now,
-        )
-        save_work_session(session, job_dir)
+        with storage_lock(self.workspace.config.workspace_path / ".locks" / "work.lock"):
+            session = WorkSession(
+                id=next_work_id(self.workspace.config.workspace_path),
+                job_id=job.id,
+                task=task.strip(),
+                repository=str(repository),
+                agent=agent,
+                model=model or self.workspace.config.default_model,
+                related_requirements=requirements,
+                scope_classification=scope_item.classification,
+                scope_change_id=scope_item.id,
+                timer_entry_ids=[timer_entry.id],
+                context_fingerprint=str(fingerprint) if fingerprint else None,
+                telemetry_baseline=baseline,
+                started_at=now,
+                updated_at=now,
+            )
+            save_work_session(session, job_dir)
         return session
 
     def finish(self, work_id: str) -> WorkSession:
@@ -133,9 +134,7 @@ class WorkManager:
             raise ValueError(f"{session.id} is not active; current status is {session.status}.")
 
         try:
-            validation = self.ai_dev_runner(
-                repository, "check", "--mode", "changed", "--no-cache"
-            )
+            validation = self.ai_dev_runner(repository, "check", "--mode", "changed", "--no-cache")
         except (OSError, RuntimeError, ValueError) as exc:
             validation = {
                 "status": "failed",
@@ -340,9 +339,7 @@ class WorkManager:
         before_dict = before_costs if isinstance(before_costs, dict) else {}
         after_dict = after_costs if isinstance(after_costs, dict) else {}
         costs = {
-            str(currency): round(
-                max(0.0, float(amount) - float(before_dict.get(currency, 0.0))), 8
-            )
+            str(currency): round(max(0.0, float(amount) - float(before_dict.get(currency, 0.0))), 8)
             for currency, amount in after_dict.items()
             if isinstance(amount, int | float) and not isinstance(amount, bool)
         }

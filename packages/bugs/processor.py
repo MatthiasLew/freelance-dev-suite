@@ -6,6 +6,8 @@ import json
 import re
 from pathlib import Path
 
+from packages.storage_utils import atomic_write_text
+
 from .models import BugReport, BugSeverity, BugStatus
 
 
@@ -117,9 +119,7 @@ class BugProcessor:
                 "oraz w jakim środowisku uruchamiasz program?"
             )
         if not expected_behavior:
-            questions.append(
-                "Jakiego dokładnego rezultatu oczekujesz po wykonaniu tej akcji?"
-            )
+            questions.append("Jakiego dokładnego rezultatu oczekujesz po wykonaniu tej akcji?")
 
         # 7. Initial Status
         status = (
@@ -166,27 +166,24 @@ class BugProcessor:
 
         # 1. JSON Data
         json_path = bugs_dir / f"{bug.id}.json"
-        json_path.write_text(
-            json.dumps(bug.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        atomic_write_text(json_path, json.dumps(bug.to_dict(), indent=2, ensure_ascii=False) + "\n")
         paths["json"] = json_path
 
         # 2. Markdown Summary
         summary_path = bugs_dir / f"{bug.id}-summary.md"
-        summary_path.write_text(bug.to_markdown(), encoding="utf-8")
+        atomic_write_text(summary_path, bug.to_markdown())
         paths["summary"] = summary_path
 
         # 3. Questions doc
         if bug.questions_for_client:
             q_path = bugs_dir / f"{bug.id}-questions-for-client.md"
-            q_path.write_text(bug.to_questions_markdown(), encoding="utf-8")
+            atomic_write_text(q_path, bug.to_questions_markdown())
             paths["questions"] = q_path
 
         # 4. Reproduction script
         repro_path = bugs_dir / f"{bug.id}-repro.py"
         if not repro_path.exists():
-            repro_path.write_text(bug.to_repro_script(), encoding="utf-8")
+            atomic_write_text(repro_path, bug.to_repro_script())
         paths["repro"] = repro_path
 
         return paths

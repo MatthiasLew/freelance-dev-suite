@@ -12,6 +12,8 @@ from typing import Any
 
 import yaml
 
+from packages.storage_utils import atomic_write_text
+
 DEFAULT_CONFIG_DIR = Path.home() / ".freelance"
 DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_DIR / "config.yaml"
 DEFAULT_WORKSPACE_ROOT = Path.home() / "freelance-workspace"
@@ -121,11 +123,10 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
     """Save config to YAML file."""
     path = config_path or DEFAULT_CONFIG_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        yaml.dump(
-            config.to_dict(),
-            f,
-            default_flow_style=False,
-            allow_unicode=True,
-            sort_keys=False,
-        )
+    content = yaml.safe_dump(
+        config.to_dict(),
+        default_flow_style=False,
+        allow_unicode=True,
+        sort_keys=False,
+    )
+    atomic_write_text(path, content)

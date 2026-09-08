@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from packages.storage_utils import atomic_write_text
+
 from .models import ScopeChangeItem, ScopeClassification
 
 if TYPE_CHECKING:
@@ -296,20 +298,19 @@ Pozdrawiam!
 
         # 1. JSON
         json_path = scope_dir / f"{item.id}.json"
-        json_path.write_text(
-            json.dumps(item.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        atomic_write_text(
+            json_path, json.dumps(item.to_dict(), indent=2, ensure_ascii=False) + "\n"
         )
         paths["json"] = json_path
 
         # 2. Analysis MD
         analysis_path = scope_dir / f"{item.id}-analysis.md"
-        analysis_path.write_text(item.to_markdown(), encoding="utf-8")
+        atomic_write_text(analysis_path, item.to_markdown())
         paths["analysis"] = analysis_path
 
         # 3. Proposal MD
         proposal_path = scope_dir / f"{item.id}-proposal.md"
-        proposal_path.write_text(item.to_proposal_markdown(), encoding="utf-8")
+        atomic_write_text(proposal_path, item.to_proposal_markdown())
         paths["proposal"] = proposal_path
 
         return paths
@@ -351,8 +352,8 @@ Pozdrawiam!
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         snapshot_file = snapshots_dir / f"requirements_baseline_{timestamp}.json"
-        snapshot_file.write_text(
-            json.dumps(requirements_spec.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        atomic_write_text(
+            snapshot_file,
+            json.dumps(requirements_spec.to_dict(), indent=2, ensure_ascii=False) + "\n",
         )
         return snapshot_file
