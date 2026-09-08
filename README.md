@@ -15,11 +15,10 @@ Freelance developers waste time on:
 
 ## Install
 
-The package has not been published to PyPI yet. Install the current version directly from the
-repository:
+Install the latest stable release from PyPI:
 
 ```bash
-pip install "git+https://github.com/MatthiasLew/freelance-dev-suite.git"
+pip install freelance-dev-suite
 ```
 
 For development, clone the repository and install the development dependencies:
@@ -195,9 +194,9 @@ runs a full job lifecycle against `ai-dev-cli-tools`, and scans Git history with
 `pyproject.toml`, builds and tests the distributions, publishes to PyPI with Trusted Publishing, and
 creates a GitHub release.
 
-Before the first tag, configure a PyPI Trusted Publisher for this repository, workflow
-`release.yml`, and environment `pypi`. Publishing is intentionally not attempted from developer
-machines or with a long-lived API token.
+PyPI publishing uses the Trusted Publisher configured for this repository, workflow `release.yml`,
+and environment `pypi`. Publishing is intentionally not attempted from developer machines or with
+a long-lived API token.
 
 ## License
 
