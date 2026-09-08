@@ -51,8 +51,40 @@ jobs:
       - name: Publish to PyPI with Trusted Publishing
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
 
-  github-release:
+  post-publish-smoke:
     needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Install the published release from PyPI
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          python -m venv .pypi-smoke
+          for attempt in 1 2 3 4 5 6; do
+            if .pypi-smoke/bin/python -m pip install \
+              --disable-pip-version-check \
+              --no-cache-dir \
+              --only-binary=:all: \
+              --index-url https://pypi.org/simple \
+              "freelance-dev-suite==${version}"; then
+              break
+            fi
+            if [ "${attempt}" -eq 6 ]; then
+              echo "Release ${version} did not become installable from PyPI in time." >&2
+              exit 1
+            fi
+            sleep 10
+          done
+          .pypi-smoke/bin/python -c \
+            "from importlib.metadata import version; assert version('freelance-dev-suite') == '${version}'"
+          .pypi-smoke/bin/freelance --version
+          .pypi-smoke/bin/freelance --help >/dev/null
+
+  github-release:
+    needs: post-publish-smoke
     runs-on: ubuntu-latest
     permissions:
       contents: write

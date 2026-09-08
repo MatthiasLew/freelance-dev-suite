@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "freelance-dev-suite"
-version = "0.1.0"
+dynamic = ["version"]
 description = "CLI toolkit for managing freelance development jobs — from intake and estimation through implementation to client handoff."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -47,6 +47,9 @@ freelance = "freelance_cli.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/freelance_cli", "packages"]
+
+[tool.hatch.version]
+path = "src/freelance_cli/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 exclude = [

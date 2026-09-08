@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.1.1 — 2026-09-08
+
+### Added
+
+- Post-publish smoke test that installs the tagged release from the public PyPI index with bounded
+  retries before creating the GitHub release.
+
+### Fixed
+
+- PyPI installation guidance now points to the published distribution.
+- GitHub release creation now provides the repository explicitly when no checkout is present.
+
+## 0.1.0 — 2026-09-08
+
 ### Added
 
 - Automatic tag-based PyPI Trusted Publishing and GitHub release workflow.
@@ -71,9 +85,7 @@
 - Minimum technical prices are always rounded upward.
 - `jobs --all` includes jobs stored under `finished`.
 
-## 0.1.0 — 2026-09-01
-
-### Added
+### Initial foundation
 
 - Project foundation: `pyproject.toml`, repo structure, CI-ready layout.
 - **freelance-workspace**: `Job` model with JSON persistence, `JOB-ID` generation, status tracking.
