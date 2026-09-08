@@ -20,6 +20,10 @@ class WorkspaceManager:
 
     def __init__(self, config: Config | None = None, config_path: Path | None = None) -> None:
         self.config_path = config_path
+        # A caller-supplied Config may be an in-memory or temporary configuration.
+        # Without an explicit destination, persisting it to the user's default
+        # ~/.freelance/config.yaml would be an unexpected global side effect.
+        self._persist_config = config is None or config_path is not None
         self.config = config or load_config(config_path)
         self._ensure_workspace()
 
@@ -55,7 +59,8 @@ class WorkspaceManager:
             notes=notes,
         )
         save_job(job, self.config.workspace_path)
-        save_config(self.config, self.config_path)
+        if self._persist_config:
+            save_config(self.config, self.config_path)
         return job
 
     def list_jobs(self, include_finished: bool = False) -> list[Job]:

@@ -41,6 +41,15 @@
 
 ### Fixed
 
+- Installation documentation no longer claims an unpublished PyPI distribution is available.
+- Caller-supplied in-memory workspace configurations no longer overwrite the user's global
+  `~/.freelance/config.yaml` when creating a job.
+- The development dependency set now installs `pytest-cov`, which is required by the CI coverage
+  command.
+- The optional `ai-dev` dependency now requires version 1.2.0 or newer, matching the `task` and
+  telemetry APIs used by repository-backed work sessions.
+- The handoff gate no longer reports a clean Git tree after a failed `git status`, no longer marks
+  a run with zero technical checks as passed, and scans real dotenv files for credential patterns.
 - Job metadata is written atomically, stale counters cannot silently reuse an existing `JOB-ID`, and
   updating archived jobs no longer creates an active duplicate.
 - Handoff archives exclude dotenv secrets and symbolic links.

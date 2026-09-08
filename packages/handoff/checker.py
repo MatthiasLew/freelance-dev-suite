@@ -159,6 +159,16 @@ class QualityGateChecker:
             check=False,
         )
 
+        if res.returncode != 0:
+            detail = res.stderr.strip() or res.stdout.strip() or "unknown Git error"
+            return QualityCheckResult(
+                category="Git",
+                name="Git Repository Status",
+                status=CheckStatus.WARN.value,
+                details=f"Could not verify working tree cleanliness (Git exit {res.returncode}).",
+                warnings=[detail],
+            )
+
         uncommitted = [line.strip() for line in res.stdout.splitlines() if line.strip()]
         if uncommitted:
             return QualityCheckResult(
@@ -240,7 +250,7 @@ class QualityGateChecker:
             rel = file_path.relative_to(project_dir)
             if any(part in IGNORED_DIRECTORIES for part in rel.parts):
                 continue
-            if file_path.name in {".env", ".env.example"}:
+            if file_path.name in {".env.example", ".env.sample", ".env.template"}:
                 continue
 
             try:
@@ -311,15 +321,28 @@ class QualityGateChecker:
                 summary = data.get("summary", {})
                 passed = summary.get("tests_passed", 0)
                 failed = summary.get("tests_failed", 0)
+                checks_total = summary.get("checks_total", 0)
+                checks_failed = summary.get("checks_failed", 0)
                 status_str = data.get("status", "unknown")
 
-                if failed > 0 or status_str == "failed":
+                if failed > 0 or checks_failed > 0 or status_str == "failed":
                     return QualityCheckResult(
                         category="Technical",
                         name="Test & Quality Check",
                         status=CheckStatus.FAIL.value,
                         details=f"Tests: {passed} passed, {failed} failed (Status: {status_str})",
-                        issues=[f"{failed} tests failed in validation."],
+                        issues=[
+                            f"Technical validation failed ({checks_failed} checks, "
+                            f"{failed} tests failed)."
+                        ],
+                    )
+                if checks_total == 0:
+                    return QualityCheckResult(
+                        category="Technical",
+                        name="Test & Quality Check",
+                        status=CheckStatus.WARN.value,
+                        details="Validation ran, but no technical checks were configured.",
+                        warnings=["No tests, lint, or type checks were executed."],
                     )
                 return QualityCheckResult(
                     category="Technical",
@@ -332,13 +355,22 @@ class QualityGateChecker:
 
         # Fallback: run pytest if pyproject.toml / tests present
         if (project_dir / "tests").exists() and (project_dir / "pyproject.toml").exists():
-            res = subprocess.run(
-                ["pytest", "-q"],
-                cwd=project_dir,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            try:
+                res = subprocess.run(
+                    ["pytest", "-q"],
+                    cwd=project_dir,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+            except OSError as exc:
+                return QualityCheckResult(
+                    category="Technical",
+                    name="Test & Quality Check",
+                    status=CheckStatus.FAIL.value,
+                    details="Configured test suite could not be executed.",
+                    issues=[str(exc)],
+                )
             if res.returncode == 0:
                 return QualityCheckResult(
                     category="Technical",
@@ -357,8 +389,9 @@ class QualityGateChecker:
         return QualityCheckResult(
             category="Technical",
             name="Test & Quality Check",
-            status=CheckStatus.PASS.value,
+            status=CheckStatus.WARN.value,
             details="Technical check skipped (no test suite configured).",
+            warnings=["No automated technical checks were available."],
         )
 
     def run_all_checks(

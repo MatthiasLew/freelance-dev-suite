@@ -1,92 +1,86 @@
 # Audyt aplikacji Freelance Dev Suite
 
-Data: 2026-09-05  
-Zakres: architektura, poprawność, bezpieczeństwo artefaktów, testy, typowanie i dystrybucja  
-Narzędzie audytowe: `ai-dev-cli-tools 1.2.1`
+Data: 2026-09-08
+Zakres: całe repozytorium, otwarte issue, architektura, poprawność, bezpieczeństwo handoff,
+testy, typowanie, CI i dystrybucja
+Narzędzie audytowe: lokalny `ai-dev-cli-tools 1.2.1` z checkoutu
+`C:\Users\Praca\fork\MatthiasLew\ai-dev-cli-tools`
 
 ## Wniosek wykonawczy
 
-Projekt jest rozbudowanym, działającym prototypem CLI w fazie alpha. Ma sensowny podział domenowy,
-duży zestaw testów i poprawnie buduje paczki Python. Audyt znalazł cztery rzeczywiste defekty:
+Repozytorium ma ukończony zakres funkcjonalny zapisany w `TODO.md` i jest działającym, dobrze
+przetestowanym prototypem CLI. Nie jest jednak ukończonym wydaniem produktu.
 
-1. aktualizacja zarchiwizowanego zlecenia tworzyła drugi egzemplarz w `active/`;
-2. paczka przekazywana klientowi mogła zawierać pliki `.env.local` i `.env.production`;
-3. ograniczenia wersji tej samej zależności były liczone jako różne pakiety;
-4. generator projektu zgłaszał udaną inicjalizację Git mimo błędu `git init`, `git add` lub `git commit`.
+Ocena: **MVP funkcjonalnie gotowe lokalnie, release NO-GO**.
 
-Wszystkie cztery problemy zostały poprawione. Po zmianach pełna walidacja kończy się sukcesem:
-157 testów przechodzi, Ruff i mypy nie zgłaszają problemów, pokrycie gałęziowe wynosi 81%, a sdist
-i wheel budują się poprawnie.
+Główne powody NO-GO:
 
-## Jak zbudowana jest aplikacja
+1. aktualny `master` (`2fa13b9`) ma czerwone GitHub Actions;
+2. nie ma tagu ani GitHub Release;
+3. pakiet nie jest opublikowany w PyPI, mimo że wcześniejszy README sugerował taką instalację;
+4. projekt sam deklaruje etap `Development Status :: 3 - Alpha`;
+5. pozostają ryzyka współbieżności, atomowości części zapisów i ograniczonego skanowania sekretów.
 
-Repozytorium jest aplikacją Python 3.11+ opartą o Click i PyYAML. CLI stanowi warstwę orkiestracji,
-a logika została rozdzielona na moduły domenowe w `packages/`.
+Po poprawkach roboczych pełna walidacja lokalna przechodzi: 160 testów, Ruff, mypy, coverage
+81,15%, build sdist/wheel oraz instalacja wheel w czystym środowisku testowym.
+
+## Architektura i zakres
+
+Repozytorium jest aplikacją Python 3.11+ opartą o Click i PyYAML. Logika domenowa znajduje się w
+`packages/`, a `src/freelance_cli/cli.py` pozostaje wspólną warstwą orkiestracji.
 
 ```mermaid
 flowchart LR
-    CLI["freelance CLI<br/>src/freelance_cli/cli.py"]
-    WS["Workspace<br/>job.json + katalogi"]
-    AI["ai-dev-cli-tools<br/>scan + map + check + context"]
-    FLOW["Workflow klienta<br/>requirements + bugs + scope"]
-    MONEY["Wycena<br/>estimator + ai_cost + tracking"]
-    DELIVERY["Dostarczenie<br/>quality gate + handoff + portfolio"]
-    WORK["Realna praca<br/>work sessions + timer + telemetry"]
-
-    CLI --> WS
-    CLI --> AI
-    CLI --> FLOW
-    CLI --> MONEY
-    CLI --> DELIVERY
-    CLI --> WORK
-    AI --> MONEY
-    AI --> WORK
-    WS --> FLOW
-    WS --> WORK
-    WS --> DELIVERY
+    CLI["freelance CLI"] --> WS["workspace i job.json"]
+    CLI --> FLOW["requirements, bugs, scope"]
+    CLI --> MONEY["estimation, pricing, tracking"]
+    CLI --> DELIVERY["quality gate i handoff"]
+    CLI --> WORK["repository-backed work sessions"]
+    WORK --> AIDEV["ai-dev task, check, telemetry"]
+    DELIVERY --> AIDEV
 ```
 
-Główne decyzje projektowe:
-
-- dane są lokalne i plikowe, bez bazy danych: konfiguracja YAML, zlecenia i raporty JSON/Markdown;
-- `WorkspaceManager` zarządza cyklem życia zlecenia i katalogami `active/` oraz `finished/`;
-- analiza techniczna deleguje skanowanie i testy do zewnętrznego `ai-dev-cli-tools`;
-- moduły `requirements`, `bugs`, `scope`, `tracking` i `communication` budują workflow freelancera;
-- `handoff` uruchamia Quality Gate i tworzy dokumentację oraz `release.zip`;
-- `work` łączy task, scope, wymagania, timer, kontekst `ai-dev`, walidację i rzeczywisty koszt AI;
-- projekt jest pakowany przez Hatchling jako sdist/wheel i testowany na Pythonie 3.11-3.13 w CI.
-
-Historia Git pokazuje duże, funkcjonalne commity realizowane kolejno według ticketów. Metadane commitów
-wskazują wyłącznie autora `Mateusz Lewandowski`; repozytorium nie zapisuje informacji pozwalającej
-niezależnie potwierdzić, że kod wygenerował konkretnie Gemini. Ocena dotyczy więc kodu i artefaktów,
-nie deklarowanego modelu AI.
+Zakres roadmapy P0-P4 jest oznaczony jako wykonany. Dostępne są m.in. intake, wycena, wymagania,
+bootstrap, obsługa bugów i scope change, timer i rentowność, portfolio, komunikacja, handoff oraz
+wznawialne sesje pracy powiązane z repozytorium i telemetryką `ai-dev`.
 
 ## Naprawione problemy
 
-### 1. Duplikowanie zarchiwizowanego zlecenia
+### 1. Issue #2: test nadpisywał globalną konfigurację użytkownika
 
-`save_job()` zawsze zapisywało do `active/`. Jeżeli zlecenie było już w `finished/`, zwykła zmiana
-statusu pozostawiała starą kopię w archiwum i tworzyła nową kopię aktywną. Zapis wyszukuje teraz
-istniejący katalog zlecenia i zachowuje jego położenie. Test regresyjny potwierdza jeden rekord i brak
-ponownego pojawienia się zlecenia w `active/`.
+`WorkspaceManager(Config(...))` zapisywał licznik zleceń przez `save_config(..., None)`, co kierowało
+zapis do `~/.freelance/config.yaml`. Obiekt konfiguracji przekazany przez test lub integratora mógł
+więc nieoczekiwanie zmienić prawdziwą konfigurację użytkownika.
 
-### 2. Możliwy wyciek sekretów w paczce klienta
+Manager zapisuje teraz konfigurację tylko wtedy, gdy sam ją wczytał albo otrzymał jawny
+`config_path`. Test regresyjny potwierdza brak wywołania zapisu dla konfiguracji wyłącznie w pamięci.
+Hash prawdziwego pliku konfiguracyjnego pozostał bez zmian podczas pełnego zestawu 160 testów.
 
-Archiwizer wykluczał tylko plik o dokładnej nazwie `.env`. Odmiany często używane w realnych
-projektach, np. `.env.local` oraz `.env.production`, trafiały do `release.zip`. Obecnie wszystkie pliki
-zaczynające się od `.env` są wykluczane poza jawnymi szablonami `.env.example`, `.env.sample` i
-`.env.template`. Archiwizer pomija też dowiązania symboliczne, aby nie kopiować plików spoza projektu.
+### 2. CI nie instalowało pluginu używanego przez własną komendę
 
-### 3. Zawyżony licznik zależności
+Workflow wywołuje pytest z `--cov`, lecz extra `dev` nie zawierało `pytest-cov`. Ostatni przebieg CI
+na `master` zatrzymał się na błędzie `unrecognized arguments: --cov=...`; pozostałe zadania macierzy
+zostały anulowane. Dodano `pytest-cov>=5.0` do zależności deweloperskich.
 
-Parser wycinał tylko znak `=`, więc `requests>=2`, `requests<3` i `requests==2.32` mogły być trzema
-różnymi wpisami. Dodana normalizacja wyodrębnia nazwę dystrybucji przed extras, markerami i operatorami
-wersji, dzięki czemu ograniczenia tej samej biblioteki są deduplikowane.
+### 3. Niezgodna minimalna wersja silnika `ai-dev`
 
-### 4. Fałszywy sukces inicjalizacji Git
+Extra `ai-dev` dopuszczało `ai-dev-cli-tools>=1.0`, chociaż moduł `freelance work` używa komend
+`ai-dev task` i `ai-dev telemetry`, dodanych w linii 1.2. Minimalną wersję podniesiono do 1.2.0.
 
-Generator ignorował kody wyjścia wszystkich poleceń Git i zawsze ustawiał `git_initialized=True`.
-Teraz sprawdza osobno `git init`, `git add` oraz `git commit`, a szczegóły błędu zwraca w `issues`.
+### 4. Quality Gate mógł zwracać fałszywy sukces
+
+- nieudany `git status` z pustym stdout był interpretowany jako czyste repozytorium;
+- brak jakichkolwiek testów, linta i typechecku był oznaczany jako `PASS`;
+- rzeczywisty plik `.env` był pomijany przez skaner sekretów.
+
+Po poprawce błąd Git daje ostrzeżenie, brak kontroli technicznych daje ostrzeżenie zamiast sukcesu,
+niemożność uruchomienia istniejących testów blokuje gate, a prawdziwe pliki dotenv są skanowane.
+Szablony `.env.example`, `.env.sample` i `.env.template` pozostają pomijane.
+
+### 5. Nieprawdziwa instrukcja instalacji
+
+PyPI nie zwraca dystrybucji `freelance-dev-suite`, a repo nie ma wydania. README informuje teraz
+uczciwie, że bieżącą wersję należy instalować z repozytorium.
 
 ## Dowody walidacyjne
 
@@ -94,53 +88,59 @@ Teraz sprawdza osobno `git init`, `git add` oraz `git commit`, a szczegóły bł
 |---|---:|
 | `ai-dev doctor` | wymagane środowisko dostępne |
 | `ai-dev scan` | sukces, 1 workspace Python |
-| `ai-dev map` | 69 plików, bez obcięcia mapy |
+| `ai-dev map` | 76 plików, bez obcięcia mapy |
 | `ai-dev check --mode full --no-cache` | sukces, 3/3 kontroli |
-| Pytest | 157/157 testów |
+| Pytest, Python 3.14 lokalnie | 160/160 |
+| Pytest, Python 3.13 z repo na `PYTHONPATH` | 160/160 |
 | Ruff | 0 błędów |
-| mypy strict (`src packages tests`) | 0 błędów w 66 plikach |
-| Coverage | 81%, próg projektu 80% |
+| mypy strict (`src`, `packages`) | 0 błędów |
+| Coverage branch | 81,15%, próg 80% |
 | `python -m build` | poprawny sdist i wheel |
+| Wheel smoke test | instalacja i `freelance --version` zakończone kodem 0 |
+| Ochrona konfiguracji użytkownika | hash bez zmian po pełnych testach |
 | `git diff --check` | brak błędów whitespace |
 
-Pierwszy test uruchomiony w ograniczonym sandboxie zgłosił 65 błędów `tmp_path` z `WinError 5`.
-Powtórzenie tego samego zestawu poza ograniczeniem plikowym dało komplet przejść. Był to błąd
-środowiska uruchomieniowego, nie aplikacji.
+Lokalne przebiegi w ograniczonym sandboxie początkowo zgłaszały `WinError 5` dla katalogów pytest.
+Powtórzenie poza ograniczeniem plikowym dało komplet przejść. To ograniczenie środowiska wykonawczego,
+nie defekt aplikacji.
 
-## Rozszerzenie `freelance work`
+## Stan CI i publikacji
 
-Dodany moduł realizuje pełny cykl `start → status/list → finish` oraz
-`NEEDS_FIX → resume → finish`. Dane trafiają atomowo do `work/sessions/WORK-NNNN.json`.
+Ostatni zdalny przebieg CI dla `2fa13b9` jest czerwony. Przyczyna została naprawiona w lokalnym
+working tree, ale nie może być uznana za naprawioną zdalnie przed commit/push i zielonym readbackiem
+całej macierzy Linux/Windows dla Pythonów 3.11-3.13.
 
-- `start` analizuje scope, zapisuje powiązania z wymaganiami, pobiera bazowy stan telemetryki,
-  przygotowuje adaptacyjny kontekst przez `ai-dev task` i uruchamia istniejący timer;
-- `status` pokazuje aktualny task, czas, agenta/model, tokeny, koszt, scope i walidację;
-- `finish` uruchamia `ai-dev check --mode changed`, zatrzymuje wyłącznie timer należący do sesji,
-  wylicza różnicę provider-reported telemetry i ustawia `VERIFIED` albo `NEEDS_FIX`;
-- `resume` przekazuje zapisany fingerprint jako `--ack-state`, więc nie wykonuje ślepego pełnego
-  wczytania repozytorium, lecz nadal uwzględnia bieżące zmiany;
-- raport rentowności preferuje rzeczywiste koszty zakończonych sesji nad estymacją z intake.
+Nie ma tagów ani GitHub Release. Wersja pozostaje `0.1.0`, a cały rozwój od pierwszej wersji znajduje
+się w sekcji `Unreleased` changelogu.
 
-Rozwiązanie zachowuje wyraźną granicę: suite przechowuje kontekst klienta, zakres, czas i pieniądze,
-a `ai-dev-cli-tools` pozostaje właścicielem mapy repozytorium, doboru kontekstu, testów i telemetryki.
+## Ryzyka pozostające
 
-## Ryzyka pozostające po audycie
+- Generatory `JOB-ID`, `WORK-ID`, identyfikatorów timerów, bugów i zmian zakresu nie używają blokady
+  międzyprocesowej. Dwa procesy mogą wybrać ten sam kolejny identyfikator.
+- `job.json` i work sessions mają zapis atomowy, ale m.in. konfiguracja, time log i część raportów
+  nadal używają bezpośredniego `write_text`/`open(..., "w")`; awaria w trakcie zapisu może uszkodzić
+  artefakt.
+- Skan sekretów jest tylko krótką listą regexów i nie przegląda historii Git. Nie zastępuje narzędzi
+  takich jak Gitleaks lub TruffleHog.
+- `src/freelance_cli/cli.py` ma około 1600 linii i skupia zbyt dużo orkiestracji. Utrudnia izolowane
+  testowanie oraz dalsze rozszerzanie CLI.
+- Najsłabsze pokrycie mają `work_commands`, komunikacja, bootstrap oraz granice integracji z
+  `ai-dev`. Globalny próg 80% może ukrywać regresję w tych miejscach.
+- Quality Gate traktuje część problemów jako ostrzeżenia, więc `PASS_WITH_WARNINGS` nadal pozwala na
+  dostarczenie. Dla projektów o wyższym ryzyku potrzebna jest konfigurowalna polityka fail-closed.
+- Brakuje potwierdzonego testu zdalnego na Pythonie 3.11/3.12 po bieżących poprawkach; taki dowód
+  powinno dostarczyć zielone CI.
 
-- `src/freelance_cli/cli.py` jest monolitycznym modułem orkiestracji; dalszy rozwój powinien przenieść
-  komendy do osobnych modułów Click bez zmiany publicznego CLI.
-- Zapis `job.json` jest już atomowy, a stary licznik nie nadpisze istniejącego ID, ale generatory
-  `JOB-ID` i `WORK-ID` nie mają blokady międzyprocesowej. Dwa równoległe procesy nadal mogą ścigać się
-  o ten sam kolejny identyfikator.
-- Skan sekretów opiera się na krótkiej liście wyrażeń regularnych. Nie zastępuje narzędzia takiego jak
-  Gitleaks/TruffleHog ani przeglądu historii Git.
-- CI obejmuje teraz Linux i Windows dla Pythona 3.11-3.13; koszt macierzy to sześć przebiegów na zmianę.
-- Część generowanej dokumentacji handoff jest ogólna i może podawać niepasujące instrukcje Python/.NET.
-  Przed wysłaniem klientowi powinna wynikać z wykrytego stosu projektu.
-- Najsłabsze pokrycie mają integracja z `ai-dev`, komunikacja i techniczny Quality Gate. Całościowy próg
-  80% przechodzi, ale testy tych granic powinny być rozwijane niezależnie.
+## Warunki uznania repo za ukończone
 
-## Rekomendowany następny etap
+1. Zacommitować i wypchnąć bieżące poprawki na gałąź roboczą lub przez PR.
+2. Otrzymać zielony wynik wszystkich sześciu zadań macierzy CI.
+3. Zamknąć issue #2 dopiero po wskazaniu commita i readbacku z CI.
+4. Ustalić politykę wydania: tag/GitHub Release oraz publikacja PyPI albo trwałe pozostawienie
+   instalacji wyłącznie z GitHub.
+5. Przed deklaracją wersji stabilnej naprawić blokady międzyprocesowe identyfikatorów i atomowość
+   pozostałych krytycznych zapisów.
 
-Największą wartość da teraz blokada międzyprocesowa generatorów identyfikatorów i jednoznaczne
-wykrywanie konfliktów. Następnie warto dalej rozbijać moduł CLI i rozszerzyć test instalacji z gotowego
-wheel o pełny przebieg `freelance work` na tymczasowym repozytorium.
+Po punktach 1-4 można uznać projekt za ukończone **alpha/MVP**. Do określenia go jako stabilnego,
+produkcyjnego narzędzia potrzebny jest również punkt 5 oraz co najmniej jeden rzeczywisty pełny
+przebieg zlecenia od intake do handoff.

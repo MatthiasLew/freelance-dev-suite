@@ -15,11 +15,14 @@ Freelance developers waste time on:
 
 ## Install
 
+The package has not been published to PyPI yet. Install the current version directly from the
+repository:
+
 ```bash
-pip install freelance-dev-suite
+pip install "git+https://github.com/MatthiasLew/freelance-dev-suite.git"
 ```
 
-For development:
+For development, clone the repository and install the development dependencies:
 
 ```bash
 git clone https://github.com/MatthiasLew/freelance-dev-suite.git

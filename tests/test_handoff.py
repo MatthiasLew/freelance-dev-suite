@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import zipfile
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from freelance_cli.cli import main
@@ -107,6 +109,68 @@ class TestQualityGateChecker:
         res_clean = checker.check_secrets(proj_dir)
         assert res_clean.status == CheckStatus.PASS.value
         assert not res_clean.issues
+
+        # A real dotenv file is excluded from release archives, but it still
+        # must be inspected by the repository quality gate.
+        (proj_dir / ".env").write_text(
+            'OPENAI_API_KEY = "sk-1234567890abcdef1234567890"\n', encoding="utf-8"
+        )
+        res_dotenv = checker.check_secrets(proj_dir)
+        assert res_dotenv.status == CheckStatus.FAIL.value
+        assert any(".env" in issue for issue in res_dotenv.issues)
+
+    def test_git_failure_is_not_reported_as_clean(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / ".git").mkdir()
+        monkeypatch.setattr("packages.handoff.checker.shutil.which", lambda _name: "git")
+        monkeypatch.setattr(
+            "packages.handoff.checker.subprocess.run",
+            lambda *_args, **_kwargs: subprocess.CompletedProcess(
+                args=["git"], returncode=128, stdout="", stderr="fatal: unsafe repository"
+            ),
+        )
+
+        result = QualityGateChecker().check_git_cleanliness(project)
+
+        assert result.status == CheckStatus.WARN.value
+        assert "Could not verify" in result.details
+
+    def test_missing_technical_checks_are_not_reported_as_pass(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        project = tmp_path / "project"
+        project.mkdir()
+        monkeypatch.setattr(
+            "packages.intake.analyzer._ai_dev_command",
+            lambda: ["ai-dev"],
+        )
+        monkeypatch.setattr(
+            "packages.handoff.checker.subprocess.run",
+            lambda *_args, **_kwargs: subprocess.CompletedProcess(
+                args=["ai-dev"],
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "status": "success",
+                        "summary": {
+                            "checks_total": 0,
+                            "checks_failed": 0,
+                            "tests_passed": 0,
+                            "tests_failed": 0,
+                        },
+                    }
+                ),
+                stderr="",
+            ),
+        )
+
+        result = QualityGateChecker().check_technical_health(project)
+
+        assert result.status == CheckStatus.WARN.value
+        assert "no technical checks" in result.details.lower()
 
     def test_check_documentation(self, tmp_path: Path) -> None:
         checker = QualityGateChecker()

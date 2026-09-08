@@ -183,6 +183,21 @@ class TestStorage:
 
 
 class TestWorkspaceManager:
+    def test_in_memory_config_does_not_overwrite_default_config(
+        self, tmp_workspace: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        config = Config(workspace_root=str(tmp_workspace))
+        saved_paths: list[Path | None] = []
+        monkeypatch.setattr(
+            "packages.workspace.manager.save_config",
+            lambda _config, path=None: saved_paths.append(path),
+        )
+        manager = WorkspaceManager(config=config)
+
+        manager.create_job(client="Test", description="Temporary configuration")
+
+        assert saved_paths == []
+
     def test_create_job(self, tmp_config: tuple[Config, Path], tmp_workspace: Path) -> None:
         config, config_path = tmp_config
         manager = WorkspaceManager(config=config, config_path=config_path)
