@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from packages.storage_utils import atomic_write_text
+from packages.storage_utils import (
+    StateError,
+    atomic_write_json,
+    atomic_write_text,
+    safe_read_json,
+    storage_lock,
+)
 
 from .models import ScopeChangeItem, ScopeClassification
 
@@ -276,18 +281,20 @@ Pozdrawiam!
 """
 
     def next_change_id(self, job_dir: Path) -> str:
-        """Generate next sequential change ID: CHANGE-001, CHANGE-002, etc."""
-        scope_dir = job_dir / "work" / "scope"
-        if not scope_dir.exists():
-            return "CHANGE-001"
+        """Generate next sequential change ID under lock: CHANGE-001, CHANGE-002, etc."""
+        lock_path = job_dir / "work" / ".scope.lock"
+        with storage_lock(lock_path):
+            scope_dir = job_dir / "work" / "scope"
+            if not scope_dir.exists():
+                return "CHANGE-001"
 
-        highest = 0
-        for p in scope_dir.glob("CHANGE-*.json"):
-            m = re.match(r"^CHANGE-(\d+)\.json$", p.name)
-            if m:
-                highest = max(highest, int(m.group(1)))
+            highest = 0
+            for p in scope_dir.glob("CHANGE-*.json"):
+                m = re.match(r"^CHANGE-(\d+)\.json$", p.name)
+                if m:
+                    highest = max(highest, int(m.group(1)))
 
-        return f"CHANGE-{highest + 1:03d}"
+            return f"CHANGE-{highest + 1:03d}"
 
     def save_change(self, item: ScopeChangeItem, job_dir: Path) -> dict[str, Path]:
         """Persist scope change analysis, proposal, and JSON data."""
@@ -298,9 +305,7 @@ Pozdrawiam!
 
         # 1. JSON
         json_path = scope_dir / f"{item.id}.json"
-        atomic_write_text(
-            json_path, json.dumps(item.to_dict(), indent=2, ensure_ascii=False) + "\n"
-        )
+        atomic_write_json(json_path, item.to_dict())
         paths["json"] = json_path
 
         # 2. Analysis MD
@@ -323,10 +328,9 @@ Pozdrawiam!
             return None
 
         try:
-            with open(json_path, encoding="utf-8") as f:
-                data = json.load(f)
+            data = safe_read_json(json_path)
             return ScopeChangeItem.from_dict(data)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, StateError, ValueError, TypeError):
             return None
 
     def list_changes(self, job_dir: Path) -> list[ScopeChangeItem]:
@@ -338,9 +342,9 @@ Pozdrawiam!
         changes: list[ScopeChangeItem] = []
         for p in sorted(scope_dir.glob("CHANGE-*.json")):
             try:
-                with open(p, encoding="utf-8") as f:
-                    changes.append(ScopeChangeItem.from_dict(json.load(f)))
-            except (OSError, json.JSONDecodeError):
+                data = safe_read_json(p)
+                changes.append(ScopeChangeItem.from_dict(data))
+            except (OSError, StateError, ValueError, TypeError):
                 continue
 
         return changes
@@ -352,8 +356,5 @@ Pozdrawiam!
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         snapshot_file = snapshots_dir / f"requirements_baseline_{timestamp}.json"
-        atomic_write_text(
-            snapshot_file,
-            json.dumps(requirements_spec.to_dict(), indent=2, ensure_ascii=False) + "\n",
-        )
+        atomic_write_json(snapshot_file, requirements_spec.to_dict())
         return snapshot_file

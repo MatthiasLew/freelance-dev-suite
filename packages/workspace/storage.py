@@ -6,13 +6,11 @@ Each job is stored as a `job.json` file inside its workspace directory:
 
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
-from typing import Any
 
 from freelance_cli.models.job import Job
-from packages.storage_utils import atomic_write_text
+from packages.storage_utils import StateError, atomic_write_json, safe_read_json
 
 
 def _slugify(text: str, max_len: int = 30) -> str:
@@ -42,15 +40,14 @@ def save_job(job: Job, workspace_root: Path) -> Path:
 
     # Write job metadata
     job_path = job_dir / "job.json"
-    atomic_write_text(job_path, json.dumps(job.to_dict(), indent=2, ensure_ascii=False) + "\n")
+    atomic_write_json(job_path, job.to_dict())
 
     return job_dir
 
 
 def load_job(job_path: Path) -> Job:
     """Load a job from a job.json file."""
-    with open(job_path, encoding="utf-8") as f:
-        data: dict[str, Any] = json.load(f)
+    data = safe_read_json(job_path)
     return Job.from_dict(data)
 
 
@@ -63,7 +60,7 @@ def _load_jobs_from(parent_dir: Path) -> list[Job]:
         if job_file.exists():
             try:
                 jobs.append(load_job(job_file))
-            except (json.JSONDecodeError, TypeError, KeyError):
+            except (StateError, TypeError, KeyError):
                 # Skip corrupted job files
                 continue
     return jobs

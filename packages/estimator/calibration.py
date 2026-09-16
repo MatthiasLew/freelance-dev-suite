@@ -47,12 +47,14 @@ class EstimatorCalibrator:
                 act_h = float(time_data.get("total_duration_hours", 0.0))
 
                 if est_h > 0 and act_h > 0:
-                    samples.append({
-                        "job_dir": j_dir.name,
-                        "estimated_hours": est_h,
-                        "actual_hours": act_h,
-                        "ratio": round(act_h / est_h, 2),
-                    })
+                    samples.append(
+                        {
+                            "job_dir": j_dir.name,
+                            "estimated_hours": est_h,
+                            "actual_hours": act_h,
+                            "ratio": round(act_h / est_h, 2),
+                        }
+                    )
                     total_est += est_h
                     total_act += act_h
             except (OSError, json.JSONDecodeError):
@@ -66,8 +68,7 @@ class EstimatorCalibrator:
                 "total_estimated_hours": 0.0,
                 "total_actual_hours": 0.0,
                 "recommendation": (
-                    "Not enough historical tracked data yet. "
-                    "Log work with 'freelance timer'."
+                    "Not enough historical tracked data yet. Log work with 'freelance timer'."
                 ),
                 "samples": [],
             }

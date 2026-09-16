@@ -46,12 +46,9 @@ class BugReport:
     error_logs: str = ""
     questions_for_client: list[str] = field(default_factory=list)
     regression_test_file: str | None = None
-    created_at: str = field(
-        default_factory=lambda: datetime.now().astimezone().isoformat()
-    )
-    updated_at: str = field(
-        default_factory=lambda: datetime.now().astimezone().isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
+    schema_version: str = "1.0"
 
     def change_status(self, new_status: str, note: str = "") -> None:
         """Update lifecycle status and refresh timestamp."""
@@ -108,12 +105,14 @@ class BugReport:
         else:
             lines.append("*Steps not fully identified yet.*")
 
-        lines.extend([
-            "",
-            "## Behavior",
-            f"- **Expected:** {self.expected_behavior or 'Not specified'}",
-            f"- **Actual:** {self.actual_behavior or 'Not specified'}",
-        ])
+        lines.extend(
+            [
+                "",
+                "## Behavior",
+                f"- **Expected:** {self.expected_behavior or 'Not specified'}",
+                f"- **Actual:** {self.actual_behavior or 'Not specified'}",
+            ]
+        )
 
         if self.environment:
             lines.extend(["", "## Environment"])
@@ -121,20 +120,24 @@ class BugReport:
                 lines.append(f"- **{k}:** {v}")
 
         if self.error_logs:
-            lines.extend([
-                "",
-                "## Error Logs & Traceback",
-                "```text",
-                self.error_logs.strip(),
-                "```",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "## Error Logs & Traceback",
+                    "```text",
+                    self.error_logs.strip(),
+                    "```",
+                ]
+            )
 
         if self.regression_test_file:
-            lines.extend([
-                "",
-                "## Regression Test",
-                f"- Linked test: `{self.regression_test_file}`",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "## Regression Test",
+                    f"- Linked test: `{self.regression_test_file}`",
+                ]
+            )
 
         lines.append("")
         return "\n".join(lines)
@@ -153,12 +156,14 @@ class BugReport:
         ]
         for q in self.questions_for_client:
             lines.append(f"- [ ] {q}")
-        lines.extend([
-            "",
-            "Thank you! Once we have this information, "
-            "we will reproduce and fix the issue immediately.",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "Thank you! Once we have this information, "
+                "we will reproduce and fix the issue immediately.",
+                "",
+            ]
+        )
         return "\n".join(lines)
 
     def to_repro_script(self, language: str = "python") -> str:
@@ -191,8 +196,8 @@ import sys
 def reproduce() -> int:
     print("Executing reproduction for {self.id}...")
     # TODO: Add steps to trigger bug: {self.title}
-    print("Expected: {self.expected_behavior or 'Success'}")
-    print("Actual: {self.actual_behavior or 'Error'}")
+    print("Expected: {self.expected_behavior or "Success"}")
+    print("Actual: {self.actual_behavior or "Error"}")
     return 1  # Exit 1 if bug occurs
 
 

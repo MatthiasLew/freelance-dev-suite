@@ -9,6 +9,12 @@ from typing import Any
 
 import click
 
+from packages.storage_utils import (
+    StateError,
+    atomic_write_json,
+    atomic_write_text,
+    safe_read_json,
+)
 from packages.workspace.manager import WorkspaceManager
 
 
@@ -136,9 +142,9 @@ def register_requirements_command(
         # 2. Or load from requirements.json if exists
         elif json_path.exists():
             try:
-                with open(json_path, encoding="utf-8") as f:
-                    spec = RequirementsSpec.from_dict(_json.load(f))
-            except (OSError, _json.JSONDecodeError):
+                spec_data = safe_read_json(json_path)
+                spec = RequirementsSpec.from_dict(spec_data)
+            except (OSError, StateError, ValueError, TypeError):
                 spec = None
 
         # 3. Or load from client/requirements.md if edited manually
@@ -181,11 +187,9 @@ def register_requirements_command(
             click.secho(f"⚠ Item or index '{uncheck_item}' not found in checklist.", fg="yellow")
 
         # Persist all 3 representations
-        with open(json_path, "w", encoding="utf-8") as f:
-            _json.dump(spec.to_dict(), f, indent=2, ensure_ascii=False)
-
-        req_md_path.write_text(spec.to_markdown(), encoding="utf-8")
-        checklist_md_path.write_text(spec.to_checklist_markdown(), encoding="utf-8")
+        atomic_write_json(json_path, spec.to_dict())
+        atomic_write_text(req_md_path, spec.to_markdown())
+        atomic_write_text(checklist_md_path, spec.to_checklist_markdown())
 
         # Output formatting
         if json_output:

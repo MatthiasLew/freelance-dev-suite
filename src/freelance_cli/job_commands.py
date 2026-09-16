@@ -7,6 +7,7 @@ from collections.abc import Callable
 import click
 
 from freelance_cli.models.job import Job, JobSource, JobStatus
+from freelance_cli.output import emit_json, exit_with_error
 from packages.workspace.manager import WorkspaceManager
 
 ManagerFactory = Callable[[], WorkspaceManager]
@@ -36,6 +37,8 @@ def register_job_commands(
     @click.option("--deadline", type=str, default=None, help="Deadline (YYYY-MM-DD).")
     @click.option("--repository", type=str, default=None, help="Path or URL to the repository.")
     @click.option("--notes", type=str, default="", help="Additional notes.")
+    @click.option("--dry-run", is_flag=True, help="Preview job creation without modifying disk.")
+    @click.option("--json", "json_output", is_flag=True, help="Print structured JSON.")
     def job_new(
         client: str,
         description: str,
@@ -44,9 +47,41 @@ def register_job_commands(
         deadline: str | None,
         repository: str | None,
         notes: str,
+        dry_run: bool,
+        json_output: bool,
     ) -> None:
         """Create a new freelance job."""
         manager = manager_factory()
+
+        if dry_run:
+            planned_id = f"JOB-{manager.config.job_counter + 1:03d}"
+            planned_data = {
+                "dry_run": True,
+                "planned_id": planned_id,
+                "client": client,
+                "description": description,
+                "source": source,
+                "budget_pln": budget,
+                "deadline": deadline,
+                "repository": repository,
+                "notes": notes,
+                "status": JobStatus.LEAD.value,
+            }
+            if json_output:
+                emit_json(planned_data, command="job new")
+                return
+            click.echo()
+            click.secho(f"[DRY-RUN] Would create {planned_id}", fg="yellow", bold=True)
+            click.echo(f"  Client:      {client}")
+            click.echo(f"  Description: {description}")
+            click.echo(f"  Source:      {source}")
+            if budget:
+                click.echo(f"  Budget:      {budget:.0f} PLN")
+            if deadline:
+                click.echo(f"  Deadline:    {deadline}")
+            click.echo()
+            return
+
         new_job = manager.create_job(
             client=client,
             description=description,
@@ -56,6 +91,11 @@ def register_job_commands(
             repository=repository,
             notes=notes,
         )
+
+        if json_output:
+            emit_json(new_job.to_dict(), command="job new")
+            return
+
         click.echo()
         click.secho(f"✓ Created {new_job.id}", fg="green", bold=True)
         click.echo(f"  Client:      {new_job.client}")
@@ -74,9 +114,15 @@ def register_job_commands(
 
     @main.command("jobs")
     @click.option("--all", "show_all", is_flag=True, help="Include finished/rejected jobs.")
-    def jobs_list(show_all: bool) -> None:
+    @click.option("--json", "json_output", is_flag=True, help="Print structured JSON.")
+    def jobs_list(show_all: bool, json_output: bool) -> None:
         """List all active jobs."""
         jobs = manager_factory().list_jobs(include_finished=show_all)
+
+        if json_output:
+            emit_json([j.to_dict() for j in jobs], command="jobs")
+            return
+
         if not jobs:
             click.echo("No active jobs found.")
             click.echo('Use "freelance job new" to create one.')
@@ -92,13 +138,21 @@ def register_job_commands(
 
     @main.command("status")
     @click.argument("job_id")
-    def status(job_id: str) -> None:
+    @click.option("--json", "json_output", is_flag=True, help="Print structured JSON.")
+    def status(job_id: str, json_output: bool) -> None:
         """Show detailed status of a specific job."""
         clean_id = job_id.upper()
         manager = manager_factory()
         found_job = manager.get_job(clean_id)
         if found_job is None:
+            if json_output:
+                exit_with_error(f"Job {clean_id} not found.", command="status", json_mode=True)
             raise click.ClickException(f"Job {clean_id} not found.")
+
+        if json_output:
+            emit_json(found_job.to_dict(), command="status")
+            return
+
         click.echo()
         click.secho(f"-- {found_job.id} --", fg=status_color(found_job.status), bold=True)
         click.echo()
@@ -118,10 +172,18 @@ def register_job_commands(
         help="New status.",
     )
     @click.option("--note", type=str, default="", help="Note for the status change.")
-    def job_update(job_id: str, new_status: str, note: str) -> None:
+    @click.option("--json", "json_output", is_flag=True, help="Print structured JSON.")
+    def job_update(job_id: str, new_status: str, note: str, json_output: bool) -> None:
         """Update a job's status."""
         clean_id = job_id.upper()
         updated = manager_factory().update_job_status(clean_id, new_status, note)
         if updated is None:
+            if json_output:
+                exit_with_error(f"Job {clean_id} not found.", command="job update", json_mode=True)
             raise click.ClickException(f"Job {clean_id} not found.")
+
+        if json_output:
+            emit_json(updated.to_dict(), command="job update")
+            return
+
         click.secho(f"✓ {updated.id} → {updated.status}", fg="green", bold=True)

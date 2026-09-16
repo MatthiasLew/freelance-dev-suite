@@ -30,9 +30,7 @@ class ClientMessage:
     subject: str
     body: str
     language: str = "pl"
-    created_at: str = field(
-        default_factory=lambda: datetime.now().astimezone().isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

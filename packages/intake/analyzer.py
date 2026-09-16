@@ -230,11 +230,7 @@ def parse_dependencies(project_path: str, package_managers: list[str]) -> int:
         try:
             for line in requirements.read_text(encoding="utf-8").splitlines():
                 clean = line.strip()
-                if (
-                    clean
-                    and not clean.startswith(("#", "-"))
-                    and (name := dependency_name(clean))
-                ):
+                if clean and not clean.startswith(("#", "-")) and (name := dependency_name(clean)):
                     dependencies.add(name)
         except OSError:
             pass

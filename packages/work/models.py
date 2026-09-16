@@ -47,6 +47,7 @@ class WorkSession:
     started_at: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
     finished_at: str | None = None
+    schema_version: str = "1.0"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -73,9 +74,7 @@ class WorkSession:
             output_tokens=int(data.get("output_tokens", 0)),
             reasoning_tokens=int(data.get("reasoning_tokens", 0)),
             total_tokens=int(data.get("total_tokens", 0)),
-            ai_costs={
-                str(key): float(value) for key, value in data.get("ai_costs", {}).items()
-            },
+            ai_costs={str(key): float(value) for key, value in data.get("ai_costs", {}).items()},
             ai_cost_pln=float(data.get("ai_cost_pln", 0.0)),
             validation_status=str(data.get("validation_status", "not_run")),
             validation_summary=dict(data.get("validation_summary", {})),

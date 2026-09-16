@@ -76,16 +76,14 @@ class RequirementsSpec:
     confirmed_at: str | None = None
     confirmed_by: str | None = None
     version: int = 1
-    created_at: str = field(
-        default_factory=lambda: datetime.now().astimezone().isoformat()
-    )
-    updated_at: str = field(
-        default_factory=lambda: datetime.now().astimezone().isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
+    schema_version: str = "1.0"
 
     def to_dict(self) -> dict[str, Any]:
         """Convert specification to structured dictionary."""
         return {
+            "schema_version": self.schema_version,
             "job_id": self.job_id,
             "title": self.title,
             "approval_state": self.approval_state,
@@ -116,9 +114,7 @@ class RequirementsSpec:
         return cls(
             job_id=str(data.get("job_id", "")),
             title=str(data.get("title", "")),
-            approval_state=str(
-                data.get("approval_state", RequirementApprovalState.DRAFT.value)
-            ),
+            approval_state=str(data.get("approval_state", RequirementApprovalState.DRAFT.value)),
             requirements=requirements,
             acceptance_criteria=acceptance_criteria,
             assumptions=[str(x) for x in data.get("assumptions", [])],
@@ -128,12 +124,8 @@ class RequirementsSpec:
             confirmed_at=data.get("confirmed_at"),
             confirmed_by=data.get("confirmed_by"),
             version=int(data.get("version", 1)),
-            created_at=str(
-                data.get("created_at") or datetime.now().astimezone().isoformat()
-            ),
-            updated_at=str(
-                data.get("updated_at") or datetime.now().astimezone().isoformat()
-            ),
+            created_at=str(data.get("created_at") or datetime.now().astimezone().isoformat()),
+            updated_at=str(data.get("updated_at") or datetime.now().astimezone().isoformat()),
         )
 
     def confirm(self, confirmed_by: str = "client") -> None:
@@ -190,17 +182,13 @@ class RequirementsSpec:
             idx = int(clean_target) - 1
             if 0 <= idx < len(self.requirements):
                 target_req = self.requirements[idx]
-                target_req.completed = (
-                    not target_req.completed if completed is None else completed
-                )
+                target_req.completed = not target_req.completed if completed is None else completed
                 self.updated_at = datetime.now().astimezone().isoformat()
                 return True
             ac_idx = idx - len(self.requirements)
             if 0 <= ac_idx < len(self.acceptance_criteria):
                 target_ac = self.acceptance_criteria[ac_idx]
-                target_ac.completed = (
-                    not target_ac.completed if completed is None else completed
-                )
+                target_ac.completed = not target_ac.completed if completed is None else completed
                 self.updated_at = datetime.now().astimezone().isoformat()
                 return True
 

@@ -17,6 +17,12 @@ def run(*args: str, env: dict[str, str] | None = None) -> None:
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
     dist = root / "dist"
+    build = root / "build"
+    for p in (dist, build):
+        if p.exists():
+            import shutil
+
+            shutil.rmtree(p, ignore_errors=True)
     run(sys.executable, "-m", "build", "--outdir", str(dist), str(root))
     wheels = sorted(dist.glob("freelance_dev_suite-*.whl"))
     if len(wheels) != 1:

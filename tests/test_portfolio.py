@@ -50,11 +50,13 @@ class TestPortfolio:
         analysis_dir.mkdir(parents=True, exist_ok=True)
 
         (job_dir / "job.json").write_text(
-            json.dumps({
-                "id": "JOB-001",
-                "client": "SecretCorp",
-                "description": "Internal Fraud Detection Engine",
-            }),
+            json.dumps(
+                {
+                    "id": "JOB-001",
+                    "client": "SecretCorp",
+                    "description": "Internal Fraud Detection Engine",
+                }
+            ),
             encoding="utf-8",
         )
         (analysis_dir / "intake.json").write_text(
@@ -62,12 +64,14 @@ class TestPortfolio:
             encoding="utf-8",
         )
         (analysis_dir / "requirements.json").write_text(
-            json.dumps({
-                "requirements": [
-                    {"title": "Real-time anomaly scoring"},
-                    {"title": "Automated alert dispatches"},
-                ]
-            }),
+            json.dumps(
+                {
+                    "requirements": [
+                        {"title": "Real-time anomaly scoring"},
+                        {"title": "Automated alert dispatches"},
+                    ]
+                }
+            ),
             encoding="utf-8",
         )
 

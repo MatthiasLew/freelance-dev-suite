@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
+
+from packages.storage_utils import (
+    StateError,
+    atomic_write_json,
+    atomic_write_text,
+    safe_read_json,
+)
 
 from .models import ProfitabilityReport, TimeLog
 
@@ -17,10 +23,9 @@ class ProfitabilityCalculator:
         job_file = job_dir / "job.json"
         if job_file.exists():
             try:
-                with open(job_file, encoding="utf-8") as f:
-                    job_data = json.load(f)
+                job_data = safe_read_json(job_file)
                 client = str(job_data.get("client", ""))
-            except (OSError, json.JSONDecodeError):
+            except (OSError, StateError, ValueError):
                 pass
 
         # 1. Quote / Revenue & Estimated Hours from estimate.json
@@ -29,11 +34,10 @@ class ProfitabilityCalculator:
         estimate_file = job_dir / "analysis" / "estimate.json"
         if estimate_file.exists():
             try:
-                with open(estimate_file, encoding="utf-8") as f:
-                    est_data = json.load(f)
+                est_data = safe_read_json(estimate_file)
                 quote_price = float(est_data.get("price_pln", 0.0))
                 estimated_hours = float(est_data.get("hours", 0.0))
-            except (OSError, json.JSONDecodeError):
+            except (OSError, StateError, ValueError):
                 pass
 
         # 2. Prefer measured work-session costs. Fall back to the intake estimate
@@ -43,19 +47,17 @@ class ProfitabilityCalculator:
         if session_files:
             for session_file in session_files:
                 try:
-                    with open(session_file, encoding="utf-8") as f:
-                        session_data = json.load(f)
+                    session_data = safe_read_json(session_file)
                     ai_costs += float(session_data.get("ai_cost_pln", 0.0))
-                except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                except (OSError, StateError, ValueError, TypeError):
                     continue
         else:
             ai_cost_file = job_dir / "analysis" / "ai-cost.json"
             try:
                 if ai_cost_file.exists():
-                    with open(ai_cost_file, encoding="utf-8") as f:
-                        cost_data = json.load(f)
+                    cost_data = safe_read_json(ai_cost_file)
                     ai_costs = float(cost_data.get("estimated_cost_pln", 0.0))
-            except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            except (OSError, StateError, ValueError, TypeError):
                 ai_costs = 0.0
 
         # 3. Tracked Time from time-log.json
@@ -63,11 +65,10 @@ class ProfitabilityCalculator:
         tracked_hours = 0.0
         if time_log_file.exists():
             try:
-                with open(time_log_file, encoding="utf-8") as f:
-                    log_data = json.load(f)
+                log_data = safe_read_json(time_log_file)
                 t_log = TimeLog.from_dict(log_data)
                 tracked_hours = t_log.total_duration_hours
-            except (OSError, json.JSONDecodeError):
+            except (OSError, StateError, ValueError):
                 pass
 
         # 4. Metrics calculation
@@ -88,7 +89,7 @@ class ProfitabilityCalculator:
             effective_hourly_rate_pln=round(effective_rate, 2),
             estimated_hours=estimated_hours,
             hours_variance_percent=round(variance, 1),
-            ai_costs_pln=ai_costs,
+            ai_costs_pln=round(ai_costs, 2),
             net_profit_pln=round(net_profit, 2),
             profit_margin_percent=round(profit_margin, 1),
         )
@@ -103,12 +104,9 @@ class ProfitabilityCalculator:
         analysis_dir.mkdir(parents=True, exist_ok=True)
 
         json_path = analysis_dir / "profitability.json"
-        json_path.write_text(
-            json.dumps(report.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        atomic_write_json(json_path, report.to_dict())
 
         md_path = analysis_dir / "profitability-report.md"
-        md_path.write_text(report.to_markdown(), encoding="utf-8")
+        atomic_write_text(md_path, report.to_markdown())
 
         return {"json": json_path, "report": md_path}

@@ -20,6 +20,7 @@
 - [x] split the CLI entrypoint into command-family modules
 - [ ] configure the PyPI Trusted Publisher before creating the first release tag
 
+
 ## P1 — First clients
 
 - [x] requirements-to-checklist
@@ -47,3 +48,18 @@
 - [x] provider-reported token and AI-cost accounting
 - [x] measured work-session costs in profitability reports
 - [x] Linux and Windows CI matrix
+
+## P5 — Engineering Maturity & Production Standards
+
+- [x] persistent schema versioning (`1.0`) and schema compatibility guardrails
+- [x] re-entrant cross-process file locking with thread-local re-entrancy tracking
+- [x] provider-agnostic secret redaction and path traversal guards
+- [x] global CLI exit code contract (`0`, `1`, `2`, `3`) and structured JSON envelope
+- [x] system diagnostics CLI (`freelance doctor`) and config inspector (`freelance config`)
+- [x] append-only business event audit timeline (`freelance history`)
+- [x] portable workspace archive export/import with SHA-256 verification and Zip Slip protection
+- [x] local STDIO Model Context Protocol (MCP) server for Cursor / Claude Desktop
+- [x] safe mutation UX with `--dry-run` and `--explain`
+- [x] complete engineering documentation suite in `docs/`
+- [x] automated GitHub Actions CodeQL security scanning
+- [x] branch test coverage boosted to 83.42% (fail_under raised to 82%)

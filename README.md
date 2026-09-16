@@ -40,7 +40,6 @@ freelance jobs
 
 # Check job status
 freelance status JOB-001
-
 # Start and finish real repository work
 freelance work start JOB-001 --task "Implement invoice export" --agent codex --model gpt-5.6-sol
 freelance work status JOB-001
@@ -81,12 +80,17 @@ freelance work finish WORK-0001
 | `freelance calibrate` | Calculate historical estimation accuracy & multiplier recommendations | ✅ implemented |
 | `freelance message <JOB-ID> <STAGE>` | Generate tailored client messages for all project stages (PL/EN) | ✅ implemented |
 | `freelance pricing` | Inspect or dynamically update AI model pricing table | ✅ implemented |
+| `freelance doctor` | Diagnose environment, git, ai-dev engine, and state schema health | ✅ implemented |
+| `freelance config [show\|validate]` | Inspect and validate suite configuration | ✅ implemented |
+| `freelance history <JOB-ID>` | View append-only business event audit timeline | ✅ implemented |
+| `freelance export <JOB-ID>` | Export job to verified archive with SHA-256 integrity | ✅ implemented |
+| `freelance import <ARCHIVE>` | Safely import job archive with path-traversal protection | ✅ implemented |
+| `freelance mcp serve` | Local STDIO Model Context Protocol (MCP) server for Cursor & Claude | ✅ implemented |
 | `freelance work start <JOB-ID> --task <TASK>` | Check scope, prepare incremental ai-dev context, and start time tracking | ✅ implemented |
 | `freelance work status <JOB-ID>` | Show the current task, elapsed time, AI usage, model, and validation | ✅ implemented |
 | `freelance work finish <WORK-ID>` | Run changed-file validation, stop time tracking, and record actual AI usage | ✅ implemented |
 | `freelance work resume <WORK-ID>` | Resume a `NEEDS_FIX` session with acknowledged incremental context | ✅ implemented |
 | `freelance work list <JOB-ID>` | List the complete development-session history for a job | ✅ implemented |
-
 ## Integration with ai-dev-cli-tools
 
 This project uses [ai-dev-cli-tools](https://github.com/MatthiasLew/ai-dev-cli-tools) as the technical engine for:
@@ -185,6 +189,52 @@ The boundary is intentional:
 This repository does not implement a second repository scanner, context builder, test selector, or
 telemetry collector. It calls the public `ai-dev` CLI contract and stores only the resulting business
 evidence.
+
+## Documentation
+
+Comprehensive engineering documentation is available in the [`docs/`](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs) directory:
+
+- [System Architecture](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/ARCHITECTURE.md): Layer boundary, component design, concurrency model, and atomic storage.
+- [State Format & Schema Compatibility](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/STATE_FORMAT.md): Detailed JSON schemas, versioning policy, and persistent structures.
+- [ai-dev Technical Engine Integration](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/AI_DEV_INTEGRATION.md): Public CLI integration points, subprocess contract, and fallbacks.
+- [CLI Contract & Exit Codes](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/CLI_CONTRACT.md): Standard exit codes (`0`, `1`, `2`, `3`), structured envelopes, `--dry-run`, and `--explain`.
+- [Security & Secret Redaction](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/SECURITY.md): Multi-provider secret masking, path traversal guards, and archive protection.
+- [Disaster Recovery & Diagnostics](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/RECOVERY.md): `freelance doctor`, stale lock resolution, and archive backup/import.
+- [Model Context Protocol (MCP) Server](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/MCP_SERVER.md): Configuration guide for Cursor, Claude Desktop, and VS Code.
+
+## Local MCP Server (Cursor & Claude)
+
+Run the local Model Context Protocol (MCP) server over standard input/output:
+
+```bash
+freelance mcp serve
+```
+
+Configure Cursor (`~/.cursor/mcp.json`) or Claude Desktop:
+```json
+{
+  "mcpServers": {
+    "freelance": {
+      "command": "freelance",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+The server provides 9 specialized tools: `list_jobs`, `get_job_status`, `get_requirements`, `get_scope_changes`, `get_work_sessions`, `get_profitability`, `get_timeline`, `create_job`, and `check_scope`. All tool responses automatically redact sensitive API keys and secrets.
+
+## Safe Mutation UX & Diagnostics
+
+All state-mutating commands support:
+- `--dry-run`: Preview operations and calculate changes without writing to disk.
+- `--explain`: Explain all steps, affected files, git branches, and locks involved.
+- `--json`: Output a structured envelope conforming to schema v1.0.
+
+Verify the overall health of the environment, git, `ai-dev` engine, and all stored job schemas:
+```bash
+freelance doctor
+```
 
 ## Releases
 

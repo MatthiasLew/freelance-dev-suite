@@ -23,9 +23,7 @@ class PortfolioCaseStudy:
     metrics: dict[str, str] = field(default_factory=dict)
     testimonial_placeholder: str = ""
     is_anonymized: bool = False
-    created_at: str = field(
-        default_factory=lambda: datetime.now().astimezone().isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -66,43 +64,49 @@ class PortfolioCaseStudy:
             self.overview or "Custom software development solution tailored for client needs.",
             "",
             "## 2. Business Challenge & Requirements",
-            self.challenge or (
-                "The client required a robust, maintainable solution to streamline workflows."
-            ),
+            self.challenge
+            or ("The client required a robust, maintainable solution to streamline workflows."),
             "",
             "## 3. Solution & Architecture",
-            self.solution or (
-                "Engineered a high-performance system adhering to modern development practices."
-            ),
+            self.solution
+            or ("Engineered a high-performance system adhering to modern development practices."),
             "",
         ]
 
         if self.technologies:
-            lines.extend([
-                "## 4. Tech Stack",
-                ", ".join(f"`{t}`" for t in self.technologies),
-                "",
-            ])
+            lines.extend(
+                [
+                    "## 4. Tech Stack",
+                    ", ".join(f"`{t}`" for t in self.technologies),
+                    "",
+                ]
+            )
 
         if self.key_features:
-            lines.extend([
-                "## 5. Key Delivered Features",
-                *[f"- **{f}**" for f in self.key_features],
-                "",
-            ])
+            lines.extend(
+                [
+                    "## 5. Key Delivered Features",
+                    *[f"- **{f}**" for f in self.key_features],
+                    "",
+                ]
+            )
 
         if self.metrics:
-            lines.extend([
-                "## 6. Key Metrics & Outcomes",
-                *[f"- **{k}:** {v}" for k, v in self.metrics.items()],
-                "",
-            ])
+            lines.extend(
+                [
+                    "## 6. Key Metrics & Outcomes",
+                    *[f"- **{k}:** {v}" for k, v in self.metrics.items()],
+                    "",
+                ]
+            )
 
         if self.testimonial_placeholder:
-            lines.extend([
-                "## 7. Client Feedback",
-                f'> "{self.testimonial_placeholder}"',
-                "",
-            ])
+            lines.extend(
+                [
+                    "## 7. Client Feedback",
+                    f'> "{self.testimonial_placeholder}"',
+                    "",
+                ]
+            )
 
         return "\n".join(lines)

@@ -72,9 +72,7 @@ TODO_PATTERNS = [
 class QualityGateChecker:
     """Runs comprehensive final validation before project delivery."""
 
-    def check_requirements(
-        self, requirements_spec: RequirementsSpec | None
-    ) -> QualityCheckResult:
+    def check_requirements(self, requirements_spec: RequirementsSpec | None) -> QualityCheckResult:
         """Validate that all requirements and acceptance criteria are completed."""
         if requirements_spec is None:
             return QualityCheckResult(
@@ -117,8 +115,10 @@ class QualityGateChecker:
                 "(not marked as CLIENT_CONFIRMED)."
             )
 
-        status = CheckStatus.FAIL.value if issues else (
-            CheckStatus.WARN.value if warnings else CheckStatus.PASS.value
+        status = (
+            CheckStatus.FAIL.value
+            if issues
+            else (CheckStatus.WARN.value if warnings else CheckStatus.PASS.value)
         )
         details = f"{done}/{total} completed ({pct:.0f}%) [{requirements_spec.approval_state}]"
 
@@ -224,12 +224,12 @@ class QualityGateChecker:
         if todo_found:
             warnings.extend(todo_found[:15])
 
-        status = CheckStatus.FAIL.value if issues else (
-            CheckStatus.WARN.value if warnings else CheckStatus.PASS.value
+        status = (
+            CheckStatus.FAIL.value
+            if issues
+            else (CheckStatus.WARN.value if warnings else CheckStatus.PASS.value)
         )
-        details = (
-            f"{len(debug_found)} debug call(s), {len(todo_found)} TODO(s) found"
-        )
+        details = f"{len(debug_found)} debug call(s), {len(todo_found)} TODO(s) found"
 
         return QualityCheckResult(
             category="Hygiene",

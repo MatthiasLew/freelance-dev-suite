@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 
-from packages.storage_utils import atomic_write_text
+from packages.storage_utils import (
+    StateError,
+    atomic_write_json,
+    safe_read_json,
+    storage_lock,
+)
 
 from .models import WorkSession, WorkStatus
 
@@ -22,14 +26,12 @@ def save_work_session(session: WorkSession, job_dir: Path) -> Path:
     directory = sessions_dir(job_dir)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{session.id}.json"
-    atomic_write_text(path, json.dumps(session.to_dict(), indent=2, ensure_ascii=False) + "\n")
+    atomic_write_json(path, session.to_dict())
     return path
 
 
 def load_work_session(path: Path) -> WorkSession:
-    data = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(data, dict):
-        raise ValueError(f"Invalid work session file: {path}")
+    data = safe_read_json(path)
     return WorkSession.from_dict(data)
 
 
@@ -41,7 +43,7 @@ def list_work_sessions(job_dir: Path) -> list[WorkSession]:
     for path in sorted(directory.glob("WORK-*.json")):
         try:
             sessions.append(load_work_session(path))
-        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        except (OSError, StateError, ValueError, TypeError):
             continue
     return sorted(sessions, key=lambda item: item.started_at)
 
@@ -74,14 +76,16 @@ def find_work_session(workspace_root: Path, work_id: str) -> tuple[WorkSession, 
 
 
 def next_work_id(workspace_root: Path) -> str:
-    """Generate a workspace-wide sequential ID."""
-    highest = 0
-    for lifecycle in ("active", "finished"):
-        parent = workspace_root / lifecycle
-        if not parent.exists():
-            continue
-        for path in parent.glob("*/work/sessions/WORK-*.json"):
-            match = _WORK_ID_PATTERN.match(path.stem)
-            if match:
-                highest = max(highest, int(match.group(1)))
-    return f"WORK-{highest + 1:04d}"
+    """Generate a workspace-wide sequential ID under lock."""
+    lock_path = workspace_root / ".locks" / "work.lock"
+    with storage_lock(lock_path):
+        highest = 0
+        for lifecycle in ("active", "finished"):
+            parent = workspace_root / lifecycle
+            if not parent.exists():
+                continue
+            for path in parent.glob("*/work/sessions/WORK-*.json"):
+                match = _WORK_ID_PATTERN.match(path.stem)
+                if match:
+                    highest = max(highest, int(match.group(1)))
+        return f"WORK-{highest + 1:04d}"

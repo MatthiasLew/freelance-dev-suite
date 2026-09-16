@@ -117,3 +117,28 @@ class TestClientCommunication:
         data = json.loads(res_json.output)
         assert data["stage"] == "delivery"
         assert data["language"] == "en"
+
+
+def test_communication_all_stages_and_languages(tmp_path: Path) -> None:
+    """MessageGenerator must correctly render customized drafts for all lifecycle stages.
+
+    Covers both Polish and English templates across all stages.
+    """
+    job_dir = tmp_path / "active" / "JOB-001"
+
+    job_dir.mkdir(parents=True, exist_ok=True)
+    gen = MessageGenerator()
+
+    stages = ["intake", "quote", "update", "demo", "delivery", "reminder", "scope-notice"]
+    for st in stages:
+        for lang in ["pl", "en"]:
+            msg = gen.generate(
+                job_id="JOB-001",
+                job_dir=job_dir,
+                stage=st,
+                language=lang,
+                notes=f"Note for {st} in {lang}",
+            )
+            assert msg.stage == st
+            assert msg.subject
+            assert f"Note for {st} in {lang}" in msg.body

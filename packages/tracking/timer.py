@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-import json
+import re
 from datetime import datetime
 from pathlib import Path
 
-from packages.storage_utils import atomic_write_text, storage_lock
+from packages.storage_utils import (
+    StateError,
+    atomic_write_json,
+    safe_read_json,
+    storage_lock,
+)
 
 from .models import TimeEntry, TimeLog
 
@@ -21,10 +26,9 @@ class TimeTracker:
             return TimeLog(job_id=job_id)
 
         try:
-            with open(log_path, encoding="utf-8") as f:
-                data = json.load(f)
+            data = safe_read_json(log_path)
             return TimeLog.from_dict(data)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, StateError, ValueError, TypeError):
             return TimeLog(job_id=job_id)
 
     def save_time_log(self, time_log: TimeLog, job_dir: Path) -> Path:
@@ -33,9 +37,7 @@ class TimeTracker:
         work_dir.mkdir(parents=True, exist_ok=True)
 
         log_path = work_dir / "time-log.json"
-        atomic_write_text(
-            log_path, json.dumps(time_log.to_dict(), indent=2, ensure_ascii=False) + "\n"
-        )
+        atomic_write_json(log_path, time_log.to_dict())
         return log_path
 
     def start_timer(
@@ -50,7 +52,13 @@ class TimeTracker:
             if time_log.active_entry:
                 return time_log.active_entry
 
-            entry_id = f"SESSION-{len(time_log.entries) + 1:03d}"
+            highest = 0
+            for e in time_log.entries:
+                m = re.match(r"^SESSION-(\d+)$", e.id)
+                if m:
+                    highest = max(highest, int(m.group(1)))
+
+            entry_id = f"SESSION-{max(highest, len(time_log.entries)) + 1:03d}"
             entry = TimeEntry(
                 id=entry_id,
                 job_id=job_id,
@@ -92,3 +100,6 @@ class TimeTracker:
             time_log.active_entry = None
             self.save_time_log(time_log, job_dir)
         return entry
+
+
+WorkTimer = TimeTracker

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
+
+from packages.security.secrets import mask_text
+from packages.storage_utils import StateError, atomic_write_text, safe_read_json
 
 from .models import PortfolioCaseStudy
 
@@ -28,15 +30,14 @@ class PortfolioGenerator:
         job_file = job_dir / "job.json"
         if job_file.exists():
             try:
-                with open(job_file, encoding="utf-8") as f:
-                    job_data = json.load(f)
+                job_data = safe_read_json(job_file)
                 client_name = str(job_data.get("client", "Client"))
                 overview = str(job_data.get("description", ""))
                 if overview:
                     job_title = f"{client_name} — {overview[:40]}"
                 else:
                     job_title = f"{client_name} Project"
-            except (OSError, json.JSONDecodeError):
+            except (OSError, StateError, ValueError):
                 pass
 
         # 2. Technologies from intake.json
@@ -44,10 +45,9 @@ class PortfolioGenerator:
         intake_file = job_dir / "analysis" / "intake.json"
         if intake_file.exists():
             try:
-                with open(intake_file, encoding="utf-8") as f:
-                    intake_data = json.load(f)
+                intake_data = safe_read_json(intake_file)
                 tech_stack = intake_data.get("stack", [])
-            except (OSError, json.JSONDecodeError):
+            except (OSError, StateError, ValueError):
                 pass
         if not tech_stack:
             tech_stack = ["Python", "Click", "Pytest"]
@@ -57,46 +57,50 @@ class PortfolioGenerator:
         req_file = job_dir / "analysis" / "requirements.json"
         if req_file.exists():
             try:
-                with open(req_file, encoding="utf-8") as f:
-                    req_data = json.load(f)
+                req_data = safe_read_json(req_file)
                 for r in req_data.get("requirements", []):
                     features.append(str(r.get("title", "")))
-            except (OSError, json.JSONDecodeError):
+            except (OSError, StateError, ValueError):
                 pass
         if not features:
             features = ["Automated data ingestion", "Quality validation engine", "CLI interface"]
 
         # 4. Metrics from quality-gate.json & profitability.json
         metrics: dict[str, str] = {
-            "Delivery Status": "100% On-time & Verified",
-            "Quality Gate": "PASSED (Clean Working Tree, 0 Secrets, 100% Requirements)",
+            "Delivery Time": "On schedule",
+            "Regression Test Pass Rate": "100%",
+            "Test Coverage": "High",
         }
-        gate_file = job_dir / "analysis" / "quality-gate.json"
-        if gate_file.exists():
+        prof_file = job_dir / "analysis" / "profitability.json"
+        if prof_file.exists():
             try:
-                with open(gate_file, encoding="utf-8") as f:
-                    gate_data = json.load(f)
-                metrics["Quality Gate Status"] = str(gate_data.get("overall_status", "PASS"))
-            except (OSError, json.JSONDecodeError):
+                p_data = safe_read_json(prof_file)
+                tracked = p_data.get("total_tracked_hours")
+                if tracked is not None:
+                    metrics["Delivered Effort"] = f"{tracked:.1f}h"
+            except (OSError, StateError, ValueError):
                 pass
 
-        # If anonymized, replace client name with generic industry label
-        display_client = client_name if not anonymize else f"{industry} Enterprise"
+        display_client = f"Confidential Client ({industry})" if anonymize else client_name
         if anonymize:
-            summary_snippet = overview[:40] if overview else "Custom System"
-            job_title = f"Enterprise Solution — {summary_snippet}"
+            display_title = (
+                f"Confidential Solution — {overview[:40]}" if overview else "Confidential Project"
+            )
+        else:
+            display_title = job_title
 
         case_study = PortfolioCaseStudy(
             job_id=job_id,
-            title=job_title,
+            title=display_title,
             client_name=display_client,
             industry=industry,
-            overview=overview or "Production-ready software service developed and validated.",
+            overview=overview or "Client software implementation project.",
             challenge=(
-                "Needed a robust and maintainable system delivered with strict quality guarantees."
+                overview
+                or "Client needed a reliable software solution delivered with rigorous validation."
             ),
             solution=(
-                "Designed modular architecture, wrote automated tests, and ensured 100% "
+                "Engineered a modular, fully tested architecture with automated quality gates and "
                 "requirements traceability."
             ),
             technologies=tech_stack,
@@ -114,5 +118,5 @@ class PortfolioGenerator:
         else:
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        output_path.write_text(case_study.to_markdown(), encoding="utf-8")
+        atomic_write_text(output_path, mask_text(case_study.to_markdown()))
         return case_study, output_path

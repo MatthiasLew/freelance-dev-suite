@@ -195,3 +195,34 @@ class TestCLI:
         estimated = cli_runner.invoke(main, ["estimate", "JOB-001", "--json"])
         assert estimated.exit_code == 0, estimated.output
         assert json.loads(estimated.output)["minimum_technical_price_pln"] > 0
+
+    def test_templates_json(self, cli_runner: CliRunner) -> None:
+        """Verify templates listing in JSON format."""
+        res = cli_runner.invoke(main, ["templates", "--json"])
+        assert res.exit_code == 0
+        payload = json.loads(res.output)
+        assert payload["command"] == "templates"
+        assert len(payload["data"]) >= 5
+
+    def test_work_status_and_list(self, cli_runner: CliRunner) -> None:
+        """Verify work status and list output when no sessions exist."""
+        cli_runner.invoke(
+            main,
+            [
+                "job",
+                "new",
+                "--client",
+                "WorkCliClient",
+                "--description",
+                "Work CLI test",
+                "--source",
+                "Direct",
+            ],
+        )
+        status_res = cli_runner.invoke(main, ["work", "status", "JOB-001"])
+        assert status_res.exit_code != 0
+        assert "No work sessions found" in status_res.output
+
+        list_res = cli_runner.invoke(main, ["work", "list", "JOB-001"])
+        assert list_res.exit_code == 0
+        assert "No work sessions found" in list_res.output

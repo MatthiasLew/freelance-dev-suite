@@ -14,9 +14,7 @@ class TimeEntry:
     id: str
     job_id: str
     activity: str = "development"
-    start_time: str = field(
-        default_factory=lambda: datetime.now().astimezone().isoformat()
-    )
+    start_time: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
     end_time: str | None = None
     duration_minutes: float = 0.0
     note: str = ""
@@ -55,6 +53,7 @@ class TimeLog:
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "schema_version": "1.0",
             "job_id": self.job_id,
             "total_duration_minutes": self.total_duration_minutes,
             "total_duration_hours": self.total_duration_hours,
@@ -89,9 +88,8 @@ class ProfitabilityReport:
     ai_costs_pln: float
     net_profit_pln: float
     profit_margin_percent: float
-    created_at: str = field(
-        default_factory=lambda: datetime.now().astimezone().isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
+    schema_version: str = "1.0"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -358,9 +358,7 @@ class TestHandoffCLI:
         archived_dir = mgr.get_job_dir(job_id)
         assert archived_dir is not None
         assert "finished" in str(archived_dir)
-        finished_job = json.loads(
-            (archived_dir / "job.json").read_text(encoding="utf-8")
-        )
+        finished_job = json.loads((archived_dir / "job.json").read_text(encoding="utf-8"))
         assert finished_job["status"] == "CLOSED"
         assert "Client accepted delivery" in finished_job["notes"]
 
@@ -406,9 +404,7 @@ class TestHandoffCLI:
         assert "BLOCKED" in res.output
 
         # With --force it succeeds
-        res_force = cli_runner.invoke(
-            main, ["handoff", job_id, "--skip-technical", "--force"]
-        )
+        res_force = cli_runner.invoke(main, ["handoff", job_id, "--skip-technical", "--force"])
         assert res_force.exit_code == 0
         assert "Handoff deliverables created" in res_force.output
 

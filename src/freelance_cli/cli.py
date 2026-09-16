@@ -15,13 +15,21 @@ from pathlib import Path
 import click
 
 from freelance_cli import __version__
+from freelance_cli.archive_commands import register_archive_commands
 from freelance_cli.bug_commands import register_bug_commands
+from freelance_cli.config_commands import register_config_commands
+from freelance_cli.doctor_commands import register_doctor_command
 from freelance_cli.handoff_commands import register_handoff_commands
+from freelance_cli.history_commands import register_history_commands
 from freelance_cli.job_commands import register_job_commands
+from freelance_cli.mcp_commands import register_mcp_commands
+from freelance_cli.output import emit_json, exit_with_error
 from freelance_cli.requirements_commands import register_requirements_command
 from freelance_cli.scope_commands import register_scope_commands
 from freelance_cli.tracking_commands import register_tracking_commands
 from freelance_cli.work_commands import work
+from packages.storage_utils import StateError, atomic_write_json, safe_read_json
+from packages.timeline.manager import TimelineManager
 from packages.workspace.manager import WorkspaceManager
 
 
@@ -75,25 +83,28 @@ def main() -> None:
 @click.option("--json", "json_output", is_flag=True, help="Print structured JSON.")
 def analyze(job_id: str, check_mode: str, json_output: bool) -> None:
     """Run project intake analysis on a job's repository."""
-    import json as _json
 
     job_id = job_id.upper()
     manager = _get_manager()
     found_job = manager.get_job(job_id)
 
     if found_job is None:
-        click.secho(f"✗ Job {job_id} not found.", fg="red", err=True)
-        sys.exit(1)
+        exit_with_error(f"Job {job_id} not found.", command="analyze", json_mode=json_output)
+        return
 
     repo_path = found_job.repository
     if not repo_path:
-        click.secho(f"✗ Job {job_id} has no repository set.", fg="red", err=True)
-        sys.exit(1)
+        exit_with_error(
+            f"Job {job_id} has no repository set.", command="analyze", json_mode=json_output
+        )
+        return
 
     repo = Path(repo_path).resolve()
     if not repo.exists():
-        click.secho(f"✗ Repository path does not exist: {repo}", fg="red", err=True)
-        sys.exit(1)
+        exit_with_error(
+            f"Repository path does not exist: {repo}", command="analyze", json_mode=json_output
+        )
+        return
 
     if not json_output:
         click.echo(f"\n🔍 Analyzing {repo} for {job_id}...\n")
@@ -108,7 +119,8 @@ def analyze(job_id: str, check_mode: str, json_output: bool) -> None:
             validation_mode=check_mode,
         )
     except (AIDevIntegrationError, ValueError) as exc:
-        raise click.ClickException(str(exc)) from exc
+        exit_with_error(str(exc), command="analyze", json_mode=json_output)
+        return
 
     # Run AI cost estimate
     from packages.ai_cost.estimator import estimate_ai_cost
@@ -130,24 +142,26 @@ def analyze(job_id: str, check_mode: str, json_output: bool) -> None:
             exchange_rate=manager.config.usd_to_pln_rate,
         )
     except ValueError as exc:
-        raise click.ClickException(str(exc)) from exc
+        exit_with_error(str(exc), command="analyze", json_mode=json_output)
+        return
 
     # Save results to job workspace
     job_dir = manager.get_job_dir(job_id)
     if job_dir:
         analysis_dir = job_dir / "analysis"
         analysis_dir.mkdir(parents=True, exist_ok=True)
-        with open(analysis_dir / "intake.json", "w", encoding="utf-8") as f:
-            _json.dump(intake.to_dict(), f, indent=2, ensure_ascii=False)
-        with open(analysis_dir / "ai-cost.json", "w", encoding="utf-8") as f:
-            _json.dump(ai_cost.to_dict(), f, indent=2, ensure_ascii=False)
+        atomic_write_json(analysis_dir / "intake.json", intake.to_dict())
+        atomic_write_json(analysis_dir / "ai-cost.json", ai_cost.to_dict())
+        TimelineManager().record_event(
+            job_dir, job_id, "analysis_performed", metadata={"check_mode": check_mode}
+        )
 
     # Update job status
     if found_job.status == "LEAD":
         manager.update_job_status(job_id, "ANALYSIS", "Intake analysis completed")
 
     if json_output:
-        click.echo(_json.dumps({"intake": intake.to_dict(), "ai_cost": ai_cost.to_dict()}))
+        emit_json({"intake": intake.to_dict(), "ai_cost": ai_cost.to_dict()}, command="analyze")
         return
 
     # Display results
@@ -168,37 +182,42 @@ def analyze(job_id: str, check_mode: str, json_output: bool) -> None:
 @click.option("--json", "json_output", is_flag=True, help="Print structured JSON.")
 def estimate(job_id: str, json_output: bool) -> None:
     """Generate a full quote estimate based on prior analysis."""
-    import json as _json
 
     job_id = job_id.upper()
     manager = _get_manager()
     found_job = manager.get_job(job_id)
 
     if found_job is None:
-        click.secho(f"✗ Job {job_id} not found.", fg="red", err=True)
-        sys.exit(1)
+        exit_with_error(f"Job {job_id} not found.", command="estimate", json_mode=json_output)
+        return
 
     job_dir = manager.get_job_dir(job_id)
     if not job_dir:
-        click.secho(f"✗ Workspace not found for {job_id}.", fg="red", err=True)
-        sys.exit(1)
+        exit_with_error(
+            f"Workspace not found for {job_id}.", command="estimate", json_mode=json_output
+        )
+        return
 
     # Load analysis data
     intake_path = job_dir / "analysis" / "intake.json"
     ai_cost_path = job_dir / "analysis" / "ai-cost.json"
 
     if not intake_path.exists() or not ai_cost_path.exists():
-        click.secho(
-            f"✗ Analysis not found. Run 'freelance analyze {job_id}' first.",
-            fg="red",
-            err=True,
+        exit_with_error(
+            f"Analysis not found. Run 'freelance analyze {job_id}' first.",
+            command="estimate",
+            json_mode=json_output,
         )
-        sys.exit(1)
+        return
 
-    with open(intake_path, encoding="utf-8") as f:
-        intake_data = _json.load(f)
-    with open(ai_cost_path, encoding="utf-8") as f:
-        ai_cost_data = _json.load(f)
+    try:
+        intake_data = safe_read_json(intake_path)
+        ai_cost_data = safe_read_json(ai_cost_path)
+    except (OSError, StateError, ValueError) as exc:
+        exit_with_error(
+            f"Failed reading analysis data: {exc}", command="estimate", json_mode=json_output
+        )
+        return
 
     # Calculate quote
     from packages.estimator.calculator import calculate_quote
@@ -218,11 +237,16 @@ def estimate(job_id: str, json_output: bool) -> None:
 
     # Save estimate
     analysis_dir = job_dir / "analysis"
-    with open(analysis_dir / "estimate.json", "w", encoding="utf-8") as f:
-        _json.dump(quote.to_dict(), f, indent=2, ensure_ascii=False)
+    atomic_write_json(analysis_dir / "estimate.json", quote.to_dict())
+    TimelineManager().record_event(
+        job_dir,
+        job_id,
+        "estimate_created",
+        metadata={"price_pln": quote.recommended_quote_min_pln},
+    )
 
     if json_output:
-        click.echo(_json.dumps(quote.to_dict()))
+        emit_json(quote.to_dict(), command="estimate")
         return
 
     # Display results
@@ -250,11 +274,27 @@ def estimate(job_id: str, json_output: bool) -> None:
 
 
 @main.command("templates")
-def templates_list() -> None:
+@click.option("--json", "json_output", is_flag=True, help="Print structured JSON.")
+def templates_list(json_output: bool) -> None:
     """List available project starter templates."""
     from packages.bootstrap.templates import list_templates
 
     tmpls = list_templates()
+    if json_output:
+        emit_json(
+            [
+                {
+                    "name": t.name,
+                    "language": t.language,
+                    "description": t.description,
+                    "default_dependencies": t.default_dependencies,
+                }
+                for t in tmpls
+            ],
+            command="templates",
+        )
+        return
+
     click.echo()
     click.secho(f"{'TEMPLATE':<20} {'LANGUAGE':<10} {'DESCRIPTION'}", bold=True)
     click.echo("-" * 80)
@@ -276,6 +316,10 @@ def templates_list() -> None:
 @click.option("--description", type=str, default="", help="Project description.")
 @click.option("--no-git", is_flag=True, help="Do not initialize git repository.")
 @click.option("--bootstrap", "run_ai_bootstrap", is_flag=True, help="Run ai-dev bootstrap.")
+@click.option(
+    "--dry-run", is_flag=True, help="Simulate bootstrap without writing files or initializing git."
+)
+@click.option("--explain", is_flag=True, help="Explain what bootstrap would do.")
 @click.option("--json", "json_output", is_flag=True, help="Print structured JSON.")
 def bootstrap(
     template_name: str,
@@ -284,15 +328,58 @@ def bootstrap(
     description: str,
     no_git: bool,
     run_ai_bootstrap: bool,
+    dry_run: bool,
+    explain: bool,
     json_output: bool,
 ) -> None:
     """Bootstrap a new standalone project from a template."""
-    import json as _json
-
     from packages.bootstrap.scaffolder import scaffold_project
+    from packages.bootstrap.templates import generate_template_files, get_template
 
     dest = target_path or Path.cwd() / (project_name or template_name)
     proj_name = project_name or dest.name
+
+    try:
+        tmpl = get_template(template_name)
+    except ValueError as exc:
+        exit_with_error(str(exc), command="bootstrap", json_mode=json_output)
+        return
+
+    if explain or dry_run:
+        simulated_files = list(
+            generate_template_files(
+                template_name=tmpl.name,
+                project_name=proj_name,
+                description=description,
+            ).keys()
+        )
+        plan = {
+            "mode": "explain" if explain else "dry-run",
+            "template": tmpl.name,
+            "language": tmpl.language,
+            "target_dir": str(dest.resolve()),
+            "project_name": proj_name,
+            "files_to_generate": simulated_files,
+            "init_git": not no_git,
+            "run_bootstrap": run_ai_bootstrap,
+        }
+        if json_output:
+            emit_json(plan, command="bootstrap")
+            return
+        click.echo()
+        title = "EXPLAIN BOOTSTRAP PLAN" if explain else "DRY-RUN BOOTSTRAP (NO CHANGES MADE)"
+        click.secho(title, fg="yellow" if dry_run else "cyan", bold=True)
+        click.echo("-" * 55)
+        click.echo(f"  Template:        {tmpl.name} ({tmpl.language})")
+        click.echo(f"  Target Dir:      {dest.resolve()}")
+        click.echo(f"  Project Name:    {proj_name}")
+        click.echo(f"  Git Init:        {'Enabled' if not no_git else 'Disabled'}")
+        click.echo(f"  ai-dev Bootstrap:{'Enabled' if run_ai_bootstrap else 'Disabled'}")
+        click.echo(f"  Files ({len(simulated_files)}):")
+        for f in simulated_files:
+            click.echo(f"    • {f}")
+        click.echo()
+        return
 
     try:
         result = scaffold_project(
@@ -304,10 +391,11 @@ def bootstrap(
             run_bootstrap=run_ai_bootstrap,
         )
     except ValueError as exc:
-        raise click.ClickException(str(exc)) from exc
+        exit_with_error(str(exc), command="bootstrap", json_mode=json_output)
+        return
 
     if json_output:
-        click.echo(_json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
+        emit_json(result.to_dict(), command="bootstrap")
         return
 
     click.echo()
@@ -335,6 +423,12 @@ def bootstrap(
 )
 @click.option("--no-git", is_flag=True, help="Do not initialize git repository.")
 @click.option("--bootstrap", "run_ai_bootstrap", is_flag=True, help="Run ai-dev bootstrap.")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Simulate starting the job without writing files or changing state.",
+)
+@click.option("--explain", is_flag=True, help="Explain what starting the job would do.")
 @click.option("--json", "json_output", is_flag=True, help="Print structured JSON.")
 def start_job(
     job_id: str,
@@ -342,12 +436,13 @@ def start_job(
     custom_path: Path | None,
     no_git: bool,
     run_ai_bootstrap: bool,
+    dry_run: bool,
+    explain: bool,
     json_output: bool,
 ) -> None:
     """Bootstrap and start implementation for a freelance job."""
-    import json as _json
-
     from packages.bootstrap.scaffolder import scaffold_project
+    from packages.bootstrap.templates import generate_template_files, get_template
     from packages.requirements.models import RequirementsSpec
 
     job_id = job_id.upper()
@@ -355,13 +450,17 @@ def start_job(
     found_job = manager.get_job(job_id)
 
     if found_job is None:
-        click.secho(f"✗ Job {job_id} not found.", fg="red", err=True)
-        sys.exit(1)
+        exit_with_error(f"Job {job_id} not found.", command="start", json_mode=json_output)
+        return
 
     job_dir = manager.get_job_dir(job_id)
     if not job_dir:
-        click.secho(f"✗ Workspace not found for {job_id}.", fg="red", err=True)
-        sys.exit(1)
+        exit_with_error(
+            f"Workspace not found for {job_id}.",
+            command="start",
+            json_mode=json_output,
+        )
+        return
 
     target_dir = custom_path or (job_dir / "project")
 
@@ -370,10 +469,62 @@ def start_job(
     req_json_path = job_dir / "analysis" / "requirements.json"
     if req_json_path.exists():
         try:
-            with open(req_json_path, encoding="utf-8") as f:
-                req_spec = RequirementsSpec.from_dict(_json.load(f))
-        except (OSError, _json.JSONDecodeError):
+            req_data = safe_read_json(req_json_path)
+            req_spec = RequirementsSpec.from_dict(req_data)
+        except (OSError, StateError, ValueError):
             req_spec = None
+
+    try:
+        tmpl = get_template(template_name)
+    except ValueError as exc:
+        exit_with_error(str(exc), command="start", json_mode=json_output)
+        return
+
+    if explain or dry_run:
+        simulated_files = list(
+            generate_template_files(
+                template_name=tmpl.name,
+                project_name=f"{job_id}-{found_job.client}",
+                description=found_job.description,
+                requirements_spec=req_spec,
+            ).keys()
+        )
+        plan = {
+            "mode": "explain" if explain else "dry-run",
+            "job_id": job_id,
+            "current_status": found_job.status,
+            "target_status": "IN_PROGRESS",
+            "template": tmpl.name,
+            "target_dir": str(target_dir.resolve()),
+            "files_to_generate": simulated_files,
+            "init_git": not no_git,
+            "run_bootstrap": run_ai_bootstrap,
+            "requirements_detected": req_spec is not None,
+        }
+        if json_output:
+            emit_json(plan, command="start")
+            return
+        click.echo()
+        title = (
+            f"EXPLAIN START PLAN — {job_id}"
+            if explain
+            else f"DRY-RUN START — {job_id} (NO CHANGES MADE)"
+        )
+        click.secho(title, fg="yellow" if dry_run else "cyan", bold=True)
+        click.echo("-" * 60)
+        click.echo(f"  Job ID:          {job_id} ({found_job.client})")
+        click.echo(f"  Status Change:   {found_job.status} -> IN_PROGRESS")
+        click.echo(f"  Template:        {tmpl.name} ({tmpl.language})")
+        click.echo(f"  Target Dir:      {target_dir.resolve()}")
+        click.echo(f"  Git Init:        {'Enabled' if not no_git else 'Disabled'}")
+        click.echo(f"  ai-dev Bootstrap:{'Enabled' if run_ai_bootstrap else 'Disabled'}")
+        req_info = f"Loaded ({len(req_spec.requirements)} functional reqs)" if req_spec else "None"
+        click.echo(f"  Requirements:    {req_info}")
+        click.echo(f"  Files ({len(simulated_files)}):")
+        for f in simulated_files:
+            click.echo(f"    • {f}")
+        click.echo()
+        return
 
     try:
         result = scaffold_project(
@@ -386,7 +537,8 @@ def start_job(
             run_bootstrap=run_ai_bootstrap,
         )
     except ValueError as exc:
-        raise click.ClickException(str(exc)) from exc
+        exit_with_error(str(exc), command="start", json_mode=json_output)
+        return
 
     # Update job repository and status
     found_job.repository = str(target_dir.resolve())
@@ -396,13 +548,19 @@ def start_job(
     from packages.workspace.storage import save_job
 
     save_job(found_job, manager.config.workspace_path)
+    TimelineManager().record_event(
+        job_dir,
+        job_id,
+        "job_started",
+        metadata={"template": template_name, "repository": str(target_dir.resolve())},
+    )
 
     if json_output:
         out_payload = {
             "job": found_job.to_dict(),
             "scaffold": result.to_dict(),
         }
-        click.echo(_json.dumps(out_payload, indent=2, ensure_ascii=False))
+        emit_json(out_payload, command="start")
         return
 
     click.echo()
@@ -439,7 +597,6 @@ def portfolio(
     json_output: bool,
 ) -> None:
     """Generate professional Markdown case study from completed job."""
-    import json as _json
 
     from packages.portfolio.generator import PortfolioGenerator
 
@@ -447,8 +604,8 @@ def portfolio(
     manager = _get_manager()
     job_dir = manager.get_job_dir(job_id)
     if not job_dir:
-        click.secho(f"✗ Job {job_id} not found.", fg="red", err=True)
-        sys.exit(1)
+        exit_with_error(f"Job {job_id} not found.", command="portfolio", json_mode=json_output)
+        return
 
     gen = PortfolioGenerator()
     case_study, saved_path = gen.generate(
@@ -463,7 +620,7 @@ def portfolio(
             "case_study": case_study.to_dict(),
             "output_path": str(saved_path),
         }
-        click.echo(_json.dumps(out, indent=2, ensure_ascii=False))
+        emit_json(out, command="portfolio")
         return
 
     click.echo()
@@ -479,8 +636,6 @@ def portfolio(
 @click.option("--json", "json_output", is_flag=True, help="Output structured JSON.")
 def calibrate(json_output: bool) -> None:
     """Analyze historical estimation accuracy and recommend calibration."""
-    import json as _json
-
     from packages.estimator.calibration import EstimatorCalibrator
 
     manager = _get_manager()
@@ -488,7 +643,7 @@ def calibrate(json_output: bool) -> None:
     result = calibrator.calibrate(manager)
 
     if json_output:
-        click.echo(_json.dumps(result, indent=2, ensure_ascii=False))
+        emit_json(result, command="calibrate")
         return
 
     click.echo()
@@ -532,16 +687,14 @@ def message(
     json_output: bool,
 ) -> None:
     """Generate professional client messages (emails, updates, handoff, proposals)."""
-    import json as _json
-
     from packages.communication.generator import MessageGenerator
 
     job_id = job_id.upper()
     manager = _get_manager()
     job_dir = manager.get_job_dir(job_id)
     if not job_dir:
-        click.secho(f"✗ Job {job_id} not found.", fg="red", err=True)
-        sys.exit(1)
+        exit_with_error(f"Job {job_id} not found.", command="message", json_mode=json_output)
+        return
 
     gen = MessageGenerator()
     msg = gen.generate(
@@ -553,7 +706,7 @@ def message(
     )
 
     if json_output:
-        click.echo(_json.dumps(msg.to_dict(), indent=2, ensure_ascii=False))
+        emit_json(msg.to_dict(), command="message")
         return
 
     click.echo()
@@ -586,7 +739,6 @@ def pricing(
     json_output: bool,
 ) -> None:
     """List or update model pricing for AI cost estimation."""
-    import json as _json
 
     from packages.ai_cost.pricing import (
         ModelPricing,
@@ -598,12 +750,12 @@ def pricing(
 
     if model_name:
         if input_price is None or output_price is None:
-            click.secho(
-                "✗ Both --input-price and --output-price are required when updating a model.",
-                fg="red",
-                err=True,
+            exit_with_error(
+                "Both --input-price and --output-price are required when updating a model.",
+                command="pricing",
+                json_mode=json_output,
             )
-            sys.exit(1)
+            return
 
         models[model_name] = ModelPricing(
             name=model_name,
@@ -624,7 +776,7 @@ def pricing(
             }
             for k, m in models.items()
         }
-        click.echo(_json.dumps(out, indent=2, ensure_ascii=False))
+        emit_json(out, command="pricing")
         return
 
     click.echo()
@@ -662,6 +814,11 @@ register_handoff_commands(main, _manager_factory)
 register_bug_commands(main, _manager_factory)
 register_scope_commands(main, _manager_factory)
 register_tracking_commands(main, _manager_factory)
+register_doctor_command(main, _manager_factory)
+register_config_commands(main, _manager_factory)
+register_history_commands(main, _manager_factory)
+register_archive_commands(main, _manager_factory)
+register_mcp_commands(main)
 main.add_command(work)
 
 

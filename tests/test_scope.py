@@ -114,8 +114,7 @@ class TestScopeDetector:
         spec = self._sample_spec()
 
         tweak_text = (
-            "Drobna zmiana: zmień formatowanie i tekst etykiety "
-            "na formularzu logowania użytkownika"
+            "Drobna zmiana: zmień formatowanie i tekst etykiety na formularzu logowania użytkownika"
         )
         res = detector.analyze_request(
             job_id="JOB-001",
@@ -299,3 +298,22 @@ class TestScopeCLI:
         list_data = json.loads(list_res.output)
         assert len(list_data) == 1
         assert list_data[0]["id"] == "CHANGE-001"
+
+    def test_cli_scope_list_empty(self, cli_runner: CliRunner) -> None:
+        """Verify scope list output when no scope changes exist."""
+        cli_runner.invoke(
+            main,
+            [
+                "job",
+                "new",
+                "--client",
+                "ScopeClient",
+                "--description",
+                "Scope test",
+                "--source",
+                "Direct",
+            ],
+        )
+        res = cli_runner.invoke(main, ["scope", "list", "JOB-001"])
+        assert res.exit_code == 0
+        assert "No scope change analyses found" in res.output

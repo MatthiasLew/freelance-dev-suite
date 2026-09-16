@@ -47,9 +47,7 @@ class QualityGateReport:
     project_path: str
     overall_status: str = GateStatus.PASS.value
     checks: list[QualityCheckResult] = field(default_factory=list)
-    timestamp: str = field(
-        default_factory=lambda: datetime.now().astimezone().isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
 
     @property
     def can_deliver(self) -> bool:
@@ -83,12 +81,8 @@ class QualityGateReport:
         lines.append(f"OVERALL QUALITY GATE STATUS: {self.overall_status}")
 
         # List problems if any
-        all_issues = [
-            (c.name, issue) for c in self.checks for issue in c.issues
-        ]
-        all_warnings = [
-            (c.name, warn) for c in self.checks for warn in c.warnings
-        ]
+        all_issues = [(c.name, issue) for c in self.checks for issue in c.issues]
+        all_warnings = [(c.name, warn) for c in self.checks for warn in c.warnings]
 
         if all_issues:
             lines.append("")
@@ -113,9 +107,7 @@ class HandoffPackage:
     output_dir: str
     created_files: list[str] = field(default_factory=list)
     archive_path: str | None = None
-    created_at: str = field(
-        default_factory=lambda: datetime.now().astimezone().isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
+
+from packages.security.secrets import mask_text
+from packages.storage_utils import StateError, atomic_write_text, safe_read_json
 
 from .models import ClientMessage, MessageStage
 
@@ -23,19 +25,18 @@ class MessageGenerator:
         """Generate tailored message based on project state and stage."""
         stage_val = stage.value if isinstance(stage, MessageStage) else str(stage).lower()
         client_name = "Klient" if language == "pl" else "Client"
-        project_title = f"Projekt {job_id}"
+        project_title = f"Zlecenie {job_id}"
 
-        # 1. Load job.json
+        # 1. Load job metadata if available
         job_file = job_dir / "job.json"
         if job_file.exists():
             try:
-                with open(job_file, encoding="utf-8") as f:
-                    job_data = json.load(f)
+                job_data = safe_read_json(job_file)
                 client_name = str(job_data.get("client", client_name))
                 desc = str(job_data.get("description", ""))
                 if desc:
                     project_title = desc[:50]
-            except (OSError, json.JSONDecodeError):
+            except (OSError, StateError, ValueError):
                 pass
 
         # 2. Load estimate if available
@@ -44,11 +45,10 @@ class MessageGenerator:
         est_file = job_dir / "analysis" / "estimate.json"
         if est_file.exists():
             try:
-                with open(est_file, encoding="utf-8") as f:
-                    est_data = json.load(f)
+                est_data = safe_read_json(est_file)
                 quote_price = float(est_data.get("price_pln", 0.0))
                 quote_hours = float(est_data.get("hours", 0.0))
-            except (OSError, json.JSONDecodeError):
+            except (OSError, StateError, ValueError):
                 pass
 
         # 3. Load requirements if available
@@ -57,12 +57,11 @@ class MessageGenerator:
         req_file = job_dir / "analysis" / "requirements.json"
         if req_file.exists():
             try:
-                with open(req_file, encoding="utf-8") as f:
-                    req_data = json.load(f)
+                req_data = safe_read_json(req_file)
                 for r in req_data.get("requirements", []):
                     req_titles.append(str(r.get("title", "")))
                 req_count = len(req_titles)
-            except (OSError, json.JSONDecodeError):
+            except (OSError, StateError, ValueError):
                 pass
 
         # 4. Generate Body according to stage & language
@@ -70,33 +69,28 @@ class MessageGenerator:
             subject, body = self._generate_intake(
                 client_name, project_title, req_titles, language, notes
             )
-        elif stage_val in (MessageStage.QUOTE.value, "proposal"):
+        elif stage_val in (MessageStage.QUOTE.value, "proposal", "estimate"):
             subject, body = self._generate_quote(
                 client_name, project_title, quote_price, quote_hours, language, notes
             )
-        elif stage_val in (MessageStage.UPDATE.value, "milestone"):
+        elif stage_val in (MessageStage.UPDATE.value, "status"):
             subject, body = self._generate_update(
                 client_name, project_title, req_count, language, notes
             )
-        elif stage_val == MessageStage.DEMO.value:
-            subject, body = self._generate_demo(
-                client_name, project_title, language, notes
-            )
-        elif stage_val in (MessageStage.DELIVERY.value, "handoff"):
-            subject, body = self._generate_delivery(
-                client_name, project_title, language, notes
-            )
-        elif stage_val == MessageStage.REMINDER.value:
-            subject, body = self._generate_reminder(
-                client_name, project_title, language, notes
-            )
-        elif stage_val == MessageStage.SCOPE_NOTICE.value:
-            subject, body = self._generate_scope_notice(
-                client_name, project_title, language, notes
-            )
+        elif stage_val in (MessageStage.DEMO.value, "review"):
+            subject, body = self._generate_demo(client_name, project_title, language, notes)
+        elif stage_val in (MessageStage.DELIVERY.value, "handoff", "final"):
+            subject, body = self._generate_delivery(client_name, project_title, language, notes)
+        elif stage_val in (MessageStage.REMINDER.value, "followup"):
+            subject, body = self._generate_reminder(client_name, project_title, language, notes)
+        elif stage_val in (MessageStage.SCOPE_NOTICE.value, "scope"):
+            subject, body = self._generate_scope_notice(client_name, project_title, language, notes)
         else:
-            subject, body = self._generate_update(
-                client_name, project_title, req_count, language, notes
+            subject = f"Aktualizacja: {project_title}"
+            body = (
+                f"Dzień dobry {client_name},\n\n"
+                f"Przesyłam aktualizację dotyczącą zlecenia {job_id}.\n\n"
+                f"{notes}\n\nPozdrawiam,\nFreelancer"
             )
 
         msg = ClientMessage(
@@ -113,7 +107,7 @@ class MessageGenerator:
         messages_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         msg_file = messages_dir / f"MSG_{ts}_{stage_val}.md"
-        msg_file.write_text(msg.to_markdown(), encoding="utf-8")
+        atomic_write_text(msg_file, mask_text(msg.to_markdown()))
 
         return msg
 
@@ -132,19 +126,23 @@ class MessageGenerator:
                 ),
             ]
             if reqs:
-                body_lines.extend([
-                    "",
-                    "Główne punkty, które wyodrębniłem z Twojego zgłoszenia:",
-                    *[f"- {r}" for r in reqs[:4]],
-                ])
+                body_lines.extend(
+                    [
+                        "",
+                        "Główne punkty, które wyodrębniłem z Twojego zgłoszenia:",
+                        *[f"- {r}" for r in reqs[:4]],
+                    ]
+                )
             if notes:
                 body_lines.extend(["", f"Uwagi/Pytania: {notes}"])
-            body_lines.extend([
-                "",
-                "W kolejnym kroku prześlę podsumowanie zakresu i wycenę.",
-                "",
-                "Pozdrawiam serdecznie,",
-            ])
+            body_lines.extend(
+                [
+                    "",
+                    "W kolejnym kroku prześlę podsumowanie zakresu i wycenę.",
+                    "",
+                    "Pozdrawiam serdecznie,",
+                ]
+            )
             return subject, "\n".join(body_lines)
 
         subject = f"Project Kickoff & Brief Received — {title}"
@@ -158,19 +156,23 @@ class MessageGenerator:
             ),
         ]
         if reqs:
-            body_lines.extend([
-                "",
-                "Key elements captured from your description:",
-                *[f"- {r}" for r in reqs[:4]],
-            ])
+            body_lines.extend(
+                [
+                    "",
+                    "Key elements captured from your description:",
+                    *[f"- {r}" for r in reqs[:4]],
+                ]
+            )
         if notes:
             body_lines.extend(["", f"Notes / Questions: {notes}"])
-        body_lines.extend([
-            "",
-            "I will follow up shortly with a detailed scope confirmation and quote.",
-            "",
-            "Best regards,",
-        ])
+        body_lines.extend(
+            [
+                "",
+                "I will follow up shortly with a detailed scope confirmation and quote.",
+                "",
+                "Best regards,",
+            ]
+        )
         return subject, "\n".join(body_lines)
 
     def _generate_quote(
@@ -199,12 +201,17 @@ class MessageGenerator:
             ]
             if notes:
                 body_lines.extend(["", f"Szczegóły: {notes}"])
-            body_lines.extend([
-                "",
-                "Jeśli propozycja Ci odpowiada, możemy natychmiast rozpocząć prace wdrożeniowe.",
-                "",
-                "Pozdrawiam,",
-            ])
+            body_lines.extend(
+                [
+                    "",
+                    (
+                        "Jeśli propozycja Ci odpowiada, "
+                        "możemy natychmiast rozpocząć prace wdrożeniowe."
+                    ),
+                    "",
+                    "Pozdrawiam,",
+                ]
+            )
             return subject, "\n".join([b for b in body_lines if b])
 
         subject = f"Project Proposal & Estimate — {title}"
@@ -229,12 +236,14 @@ class MessageGenerator:
         ]
         if notes:
             body_lines.extend(["", f"Details: {notes}"])
-        body_lines.extend([
-            "",
-            "Looking forward to your feedback so we can kick off implementation.",
-            "",
-            "Best regards,",
-        ])
+        body_lines.extend(
+            [
+                "",
+                "Looking forward to your feedback so we can kick off implementation.",
+                "",
+                "Best regards,",
+            ]
+        )
         return subject, "\n".join([b for b in body_lines if b])
 
     def _generate_update(
@@ -250,12 +259,14 @@ class MessageGenerator:
             ]
             if notes:
                 body_lines.extend(["", f"Ostatnie wdrożenia: {notes}"])
-            body_lines.extend([
-                "",
-                "Wkrótce przekażę wersję do pierwszych testów.",
-                "",
-                "Pozdrawiam,",
-            ])
+            body_lines.extend(
+                [
+                    "",
+                    "Wkrótce przekażę wersję do pierwszych testów.",
+                    "",
+                    "Pozdrawiam,",
+                ]
+            )
             return subject, "\n".join(body_lines)
 
         subject = f"Project Progress Update — {title}"
@@ -267,17 +278,17 @@ class MessageGenerator:
         ]
         if notes:
             body_lines.extend(["", f"Recent accomplishments: {notes}"])
-        body_lines.extend([
-            "",
-            "I will share a testing build shortly.",
-            "",
-            "Best regards,",
-        ])
+        body_lines.extend(
+            [
+                "",
+                "I will share a testing build shortly.",
+                "",
+                "Best regards,",
+            ]
+        )
         return subject, "\n".join(body_lines)
 
-    def _generate_demo(
-        self, client: str, title: str, lang: str, notes: str
-    ) -> tuple[str, str]:
+    def _generate_demo(self, client: str, title: str, lang: str, notes: str) -> tuple[str, str]:
         if lang == "pl":
             subject = f"Wersja testowa gotowa do wglądu — {title}"
             body_lines = [
@@ -291,12 +302,17 @@ class MessageGenerator:
             ]
             if notes:
                 body_lines.extend(["", f"Instrukcja dostępu / Uwagi: {notes}"])
-            body_lines.extend([
-                "",
-                "Będę wdzięczny za Twoją weryfikację i uwagi przed finalnym zamknięciem projektu.",
-                "",
-                "Pozdrawiam,",
-            ])
+            body_lines.extend(
+                [
+                    "",
+                    (
+                        "Będę wdzięczny za Twoją weryfikację i uwagi "
+                        "przed finalnym zamknięciem projektu."
+                    ),
+                    "",
+                    "Pozdrawiam,",
+                ]
+            )
             return subject, "\n".join(body_lines)
 
         subject = f"Demo / Staging Build Ready for Review — {title}"
@@ -308,17 +324,17 @@ class MessageGenerator:
         ]
         if notes:
             body_lines.extend(["", f"Access details / Notes: {notes}"])
-        body_lines.extend([
-            "",
-            "Please review when convenient and let me know if you have any feedback.",
-            "",
-            "Best regards,",
-        ])
+        body_lines.extend(
+            [
+                "",
+                "Please review when convenient and let me know if you have any feedback.",
+                "",
+                "Best regards,",
+            ]
+        )
         return subject, "\n".join(body_lines)
 
-    def _generate_delivery(
-        self, client: str, title: str, lang: str, notes: str
-    ) -> tuple[str, str]:
+    def _generate_delivery(self, client: str, title: str, lang: str, notes: str) -> tuple[str, str]:
         if lang == "pl":
             subject = f"Finalna dostawa projektu — {title}"
             body_lines = [
@@ -338,12 +354,17 @@ class MessageGenerator:
             ]
             if notes:
                 body_lines.extend(["", f"Dodatkowe informacje: {notes}"])
-            body_lines.extend([
-                "",
-                "Dziękuję za doskonałą współpracę! Będę wdzięczny za krótką opinię lub referencje.",
-                "",
-                "Pozdrawiam serdecznie,",
-            ])
+            body_lines.extend(
+                [
+                    "",
+                    (
+                        "Dziękuję za doskonałą współpracę! "
+                        "Będę wdzięczny za krótką opinię lub referencje."
+                    ),
+                    "",
+                    "Pozdrawiam serdecznie,",
+                ]
+            )
             return subject, "\n".join(body_lines)
 
         subject = f"Final Project Delivery & Handoff — {title}"
@@ -361,20 +382,20 @@ class MessageGenerator:
         ]
         if notes:
             body_lines.extend(["", f"Additional notes: {notes}"])
-        body_lines.extend([
-            "",
-            (
-                "Thank you for the great collaboration! "
-                "A brief review or testimonial would be greatly appreciated."
-            ),
-            "",
-            "Best regards,",
-        ])
+        body_lines.extend(
+            [
+                "",
+                (
+                    "Thank you for the great collaboration! "
+                    "A brief review or testimonial would be greatly appreciated."
+                ),
+                "",
+                "Best regards,",
+            ]
+        )
         return subject, "\n".join(body_lines)
 
-    def _generate_reminder(
-        self, client: str, title: str, lang: str, notes: str
-    ) -> tuple[str, str]:
+    def _generate_reminder(self, client: str, title: str, lang: str, notes: str) -> tuple[str, str]:
         if lang == "pl":
             subject = f"Uprzejme przypomnienie — {title}"
             body_lines = [
@@ -385,18 +406,22 @@ class MessageGenerator:
             if notes:
                 body_lines.extend(["", f"Dotyczy: {notes}"])
             else:
-                body_lines.extend([
-                    (
-                        "Będę wdzięczny za informację zwrotną dotyczącą statusu "
-                        "akceptacji lub płatności."
-                    )
-                ])
-            body_lines.extend([
-                "",
-                "W razie jakichkolwiek pytań pozostaję do dyspozycji.",
-                "",
-                "Pozdrawiam,",
-            ])
+                body_lines.extend(
+                    [
+                        (
+                            "Będę wdzięczny za informację zwrotną dotyczącą statusu "
+                            "akceptacji lub płatności."
+                        )
+                    ]
+                )
+            body_lines.extend(
+                [
+                    "",
+                    "W razie jakichkolwiek pytań pozostaję do dyspozycji.",
+                    "",
+                    "Pozdrawiam,",
+                ]
+            )
             return subject, "\n".join(body_lines)
 
         subject = f"Gentle Reminder — {title}"
@@ -408,18 +433,22 @@ class MessageGenerator:
         if notes:
             body_lines.extend(["", f"Details: {notes}"])
         else:
-            body_lines.extend([
-                (
-                    "Please let me know if you need any assistance or have "
-                    "feedback on the deliverables."
-                )
-            ])
-        body_lines.extend([
-            "",
-            "Thank you and looking forward to hearing from you.",
-            "",
-            "Best regards,",
-        ])
+            body_lines.extend(
+                [
+                    (
+                        "Please let me know if you need any assistance or have "
+                        "feedback on the deliverables."
+                    )
+                ]
+            )
+        body_lines.extend(
+            [
+                "",
+                "Thank you and looking forward to hearing from you.",
+                "",
+                "Best regards,",
+            ]
+        )
         return subject, "\n".join(body_lines)
 
     def _generate_scope_notice(
@@ -438,15 +467,17 @@ class MessageGenerator:
             ]
             if notes:
                 body_lines.extend(["", f"Wycena i zakres: {notes}"])
-            body_lines.extend([
-                "",
-                (
-                    "Przygotowałem propozycję aneksu rozszerzającego zakres prac. "
-                    "Daj znać, jak chcesz postąpić."
-                ),
-                "",
-                "Pozdrawiam,",
-            ])
+            body_lines.extend(
+                [
+                    "",
+                    (
+                        "Przygotowałem propozycję aneksu rozszerzającego zakres prac. "
+                        "Daj znać, jak chcesz postąpić."
+                    ),
+                    "",
+                    "Pozdrawiam,",
+                ]
+            )
             return subject, "\n".join(body_lines)
 
         subject = f"Scope Extension Notice — {title}"
@@ -458,11 +489,15 @@ class MessageGenerator:
         ]
         if notes:
             body_lines.extend(["", f"Scope & estimate: {notes}"])
-        body_lines.extend([
-            "",
-            "I have prepared a change order proposal. Let me know how you would like to proceed.",
-            "",
-            "Best regards,",
-        ])
+        body_lines.extend(
+            [
+                "",
+                (
+                    "I have prepared a change order proposal. "
+                    "Let me know how you would like to proceed."
+                ),
+                "",
+                "Best regards,",
+            ]
+        )
         return subject, "\n".join(body_lines)
-

@@ -80,7 +80,7 @@ def register_scope_commands(
                 pass
 
         detector = ScopeChangeDetector()
-        with storage_lock(job_dir / "work" / "scope" / ".scope.lock"):
+        with storage_lock(job_dir / "work" / ".scope.lock"):
             change_id = detector.next_change_id(job_dir)
             change_item = detector.analyze_request(
                 job_id=job_id,

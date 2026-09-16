@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from freelance_cli.config import Config, load_config, save_config
 from freelance_cli.models.job import Job, JobSource, JobStatus
 from packages.storage_utils import storage_lock
+from packages.timeline.manager import TimelineManager
 from packages.workspace.storage import (
     archive_job,
     find_all_jobs,
@@ -47,9 +49,22 @@ class WorkspaceManager:
         """Create a new job and save it to the workspace."""
         lock_path = self.config.workspace_path / ".locks" / "jobs.lock"
         with storage_lock(lock_path):
-            job_id = self.config.next_job_id()
-            while find_job_by_id(job_id, self.config.workspace_path) is not None:
-                job_id = self.config.next_job_id()
+            if self.config_path and self.config_path.exists():
+                self.config = load_config(self.config_path)
+
+            highest = self.config.job_counter
+            for parent_dir in (
+                self.config.workspace_path / "active",
+                self.config.workspace_path / "finished",
+            ):
+                if parent_dir.exists():
+                    for p in parent_dir.iterdir():
+                        match = re.match(r"^JOB-(\d+)", p.name)
+                        if match:
+                            highest = max(highest, int(match.group(1)))
+
+            self.config.job_counter = highest + 1
+            job_id = f"JOB-{self.config.job_counter:03d}"
             job = Job(
                 id=job_id,
                 client=client,
@@ -62,6 +77,14 @@ class WorkspaceManager:
                 notes=notes,
             )
             save_job(job, self.config.workspace_path)
+            job_dir = self.get_job_dir(job_id)
+            if job_dir:
+                TimelineManager().record_event(
+                    job_dir,
+                    job_id,
+                    "job_created",
+                    metadata={"client": client, "source": source},
+                )
             if self._persist_config:
                 save_config(self.config, self.config_path)
         return job

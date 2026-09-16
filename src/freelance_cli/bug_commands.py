@@ -65,7 +65,7 @@ def register_bug_commands(
             content = click.prompt("Paste or enter bug description")
 
         processor = BugProcessor()
-        with storage_lock(job_dir / "work" / "bugs" / ".bugs.lock"):
+        with storage_lock(job_dir / "work" / ".bugs.lock"):
             bug_id = processor.next_bug_id(job_dir)
             bug_report = processor.parse_raw_report(
                 raw_text=content,

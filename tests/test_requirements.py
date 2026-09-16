@@ -354,3 +354,21 @@ class TestRequirementsCLI:
         assert result.exit_code != 0
         assert "not found" in result.output
 
+    def test_requirements_cli_status(self, cli_runner: CliRunner) -> None:
+        """Verify requirements CLI renders default specification on freshly created job."""
+        cli_runner.invoke(
+            main,
+            [
+                "job",
+                "new",
+                "--client",
+                "ReqClient",
+                "--description",
+                "Req test",
+                "--source",
+                "Direct",
+            ],
+        )
+        res = cli_runner.invoke(main, ["requirements", "JOB-001"])
+        assert res.exit_code == 0
+        assert "REQUIREMENTS SPECIFICATION" in res.output

@@ -7,6 +7,8 @@ from pathlib import Path
 
 import yaml
 
+from packages.storage_utils import atomic_write_text
+
 DEFAULT_PRICING_PATH = Path(__file__).with_name("default-pricing.yaml")
 
 
@@ -94,9 +96,8 @@ def save_model_pricing(
             data["reasoning_per_million"] = m.reasoning_per_million
         raw_models[name] = data
 
-    path.write_text(
+    atomic_write_text(
+        path,
         yaml.dump({"models": raw_models}, sort_keys=False),
-        encoding="utf-8",
     )
     return path
-

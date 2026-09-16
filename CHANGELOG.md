@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Added
+- **Storage & Schema Compatibility**: Persistent schema versioning (`1.0`) across all models (`Job`, `WorkSession`, `BugReport`, `ScopeChangeItem`, `TimeLog`, `ProfitabilityReport`, `RequirementsSpec`) with `safe_read_json`, `IncompatibleSchemaError`, and `CorruptedStateError`.
+- **Concurrency & Re-Entrancy**: Cross-process file locking with thread-local re-entrant lock tracking (`storage_lock`) resolving nested calls and Windows temporary path resolution issues.
+- **Security & Secret Redaction**: Provider-agnostic credential masking in `packages/security/secrets.py` (OpenAI, Anthropic, OpenRouter, GitHub, database connection strings, private keys) and path traversal guards (`assert_safe_path`).
+- **Standard CLI Output Contract**: Standard process exit codes (`0: SUCCESS`, `1: ERROR`, `2: USAGE`, `3: BLOCKED`), structured JSON response envelope with dual backward-compatible key access.
+- **System Diagnostics**: `freelance doctor` command validating Python runtime, workspace permissions, Git availability, `ai-dev` engine version, and persistent state schema health.
+- **Configuration Inspection**: `freelance config show` and `freelance config validate` commands.
+- **Business Audit Timeline**: Append-only chronological timeline (`events.jsonl`) and `freelance history <JOB-ID>` CLI command.
+- **Archive Portability & Safety**: `freelance export` and `freelance import` with SHA-256 manifest integrity and Tar/Zip Slip path traversal prevention.
+- **Local Model Context Protocol (MCP) Server**: Local stdio JSON-RPC 2.0 server (`freelance mcp serve`) exposing 9 business workflow tools to Cursor and Claude Desktop with automated secret redaction.
+- **Safe Mutation UX**: Interactive `--dry-run` simulation and `--explain` operational breakdowns across state-mutating commands.
+- **Engineering Documentation**: Comprehensive documentation suite in `docs/` covering architecture, state format, `ai-dev` integration, CLI contract, security, recovery, and MCP server.
+- **Automated Security Scanning**: GitHub Actions CodeQL analysis workflow (`.github/workflows/codeql.yml`).
+- **Test Suite & Coverage**: Added 53 new tests (214 total passing tests) increasing branch coverage to 83.42% and raising enforcement threshold in `pyproject.toml` to 82%.
+
+
 ## 0.1.1 — 2026-09-08
 
 ### Added

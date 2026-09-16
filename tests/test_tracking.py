@@ -129,21 +129,23 @@ class TestTimeTrackerAndProfitability:
             encoding="utf-8",
         )
         (work_dir / "time-log.json").write_text(
-            json.dumps({
-                "job_id": "JOB-001",
-                "entries": [
-                    {
-                        "id": "SESSION-001",
-                        "job_id": "JOB-001",
-                        "duration_minutes": 300.0,
-                    },
-                    {
-                        "id": "SESSION-002",
-                        "job_id": "JOB-001",
-                        "duration_minutes": 180.0,
-                    },
-                ],
-            }),
+            json.dumps(
+                {
+                    "job_id": "JOB-001",
+                    "entries": [
+                        {
+                            "id": "SESSION-001",
+                            "job_id": "JOB-001",
+                            "duration_minutes": 300.0,
+                        },
+                        {
+                            "id": "SESSION-002",
+                            "job_id": "JOB-001",
+                            "duration_minutes": 180.0,
+                        },
+                    ],
+                }
+            ),
             encoding="utf-8",
         )
 

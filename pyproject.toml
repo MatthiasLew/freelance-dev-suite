@@ -80,6 +80,7 @@ explicit_package_bases = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
+
 addopts = "-q -p no:pytest-qt"
 
 [tool.coverage.run]
@@ -87,5 +88,5 @@ branch = true
 source = ["freelance_cli", "packages"]
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 82
 show_missing = true

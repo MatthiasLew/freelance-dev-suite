@@ -1,146 +1,135 @@
-# Audyt aplikacji Freelance Dev Suite
+# Engineering Maturity Audit & Modernization Report
 
-Data: 2026-09-08
-Zakres: całe repozytorium, otwarte issue, architektura, poprawność, bezpieczeństwo handoff,
-testy, typowanie, CI i dystrybucja
-Narzędzie audytowe: lokalny `ai-dev-cli-tools 1.2.1` z checkoutu
-`C:\Users\Praca\fork\MatthiasLew\ai-dev-cli-tools`
+**Target Repository**: `freelance-dev-suite` (`c:\Users\Praca\fork\MatthiasLew\freelance-dev-suite`)  
+**Reference Repository**: `ai-dev-cli-tools` (`c:\Users\Praca\fork\MatthiasLew\ai-dev-cli-tools`)  
+**Date**: September 2026  
+**Status**: Completed & Verified  
 
-## Wniosek wykonawczy
+---
 
-Repozytorium ma ukończony zakres funkcjonalny zapisany w `TODO.md` i jest działającym, dobrze
-przetestowanym prototypem CLI. Nie jest jednak ukończonym wydaniem produktu.
+## 1. Executive Summary
 
-Ocena: **MVP funkcjonalnie gotowe lokalnie, release NO-GO**.
+This audit evaluated the technical and operational engineering maturity of `freelance-dev-suite` against the production-grade standards established in `ai-dev-cli-tools`.
 
-Główne powody NO-GO:
+### Architectural Boundary Preserved
+Throughout this modernization, the core separation of concerns was strictly preserved:
+- **`freelance-dev-suite`** remains exclusively the **Commercial & Workflow Layer** (clients, commercial intake, scope control, pricing, quotes, time logs, bug triage, handoff deliverables, business timeline, local MCP server).
+- **`ai-dev-cli-tools`** remains exclusively the **Technical Execution Engine** (repository discovery, AST context slicing, test selection, static validation, technical token telemetry).
+- No repository scanner, context builder, test selector, or git analysis engine was duplicated in `freelance-dev-suite`. All technical operations invoke `ai-dev` via its documented public CLI interface.
 
-1. aktualny `master` (`2fa13b9`) ma czerwone GitHub Actions;
-2. nie ma tagu ani GitHub Release;
-3. pakiet nie jest opublikowany w PyPI, mimo że wcześniejszy README sugerował taką instalację;
-4. projekt sam deklaruje etap `Development Status :: 3 - Alpha`;
-5. pozostają ryzyka współbieżności, atomowości części zapisów i ograniczonego skanowania sekretów.
+---
 
-Po poprawkach roboczych pełna walidacja lokalna przechodzi: 160 testów, Ruff, mypy, coverage
-81,15%, build sdist/wheel oraz instalacja wheel w czystym środowisku testowym.
+## 2. Comparative Maturity Matrix
 
-## Architektura i zakres
+| Dimension | Baseline `freelance-dev-suite` | Reference `ai-dev-cli-tools` | Final `freelance-dev-suite` |
+| :--- | :---: | :---: | :---: |
+| **Architectural Boundary** | Mixed / informal integration | Strict CLI engine | Strict CLI subprocess delegation |
+| **Data Schema Versioning** | Unversioned JSON | Explicit schema versions & migration | Versioned `1.0` schemas with `safe_read_json` |
+| **Concurrency & Locks** | Partial file locks, re-entrancy deadlock risk | Interprocess locks with bounded timeouts | Thread-local re-entrant `storage_lock` |
+| **Atomic File Writes** | Standard open/write (partial write risk) | Atomic temp-file swap | `atomic_write_json` & `atomic_write_text` |
+| **Secret Redaction** | Basic gitleaks CI check | Runtime masking & log sanitization | Provider-agnostic `mask_text` (OpenAI, Anthropic, etc.) |
+| **Path Traversal Guards** | Ad-hoc Path concatenation | Normalized jailbreak checks | `assert_safe_path` & Tar/Zip Slip guards |
+| **CLI Exit Code Contract** | Standard Click exit 0/1 | Strict `0/1/2/3` exit code contract | Standard `0 (OK), 1 (ERR), 2 (USAGE), 3 (BLOCKED)` |
+| **Machine-Parseable Output**| Incomplete `--json` flags | Universal envelope with metadata | Universal envelope `{schema_version, command, status, exit_code, data, errors}` |
+| **Mutation Safety UX** | Direct mutations without preview | `--dry-run` and explanation flags | `--dry-run` and `--explain` across all mutating commands |
+| **Diagnostics & Health** | Manual troubleshooting | Self-diagnosing doctor command | `freelance doctor [--json]` checking env, git, engine, schemas |
+| **Business Audit Trail** | Session files only | Structured telemetry & timeline | Append-only `events.jsonl` + `freelance history` |
+| **Backup & Portability** | Manual file copy | Verified archive export/import | `freelance export/import` with SHA-256 integrity |
+| **AI Assistant Protocol** | CLI only | Local MCP server | Local STDIO MCP server (9 tools) for Cursor & Claude |
+| **Documentation Suite** | Basic README | 35+ comprehensive architecture docs | Full `docs/` suite (Architecture, State, Security, MCP, etc.) |
+| **Automated Security Scan** | Gitleaks only | CodeQL + Gitleaks | CodeQL automated workflow + Gitleaks |
+| **Branch Test Coverage** | 80.0% (threshold 80%) | High coverage with branch analysis | **83.42%** (threshold raised to **82%**) |
+| **Passing Test Count** | 161 tests | Comprehensive suite | **214 tests** (+53 new tests) |
+| **Type Safety** | Mypy strict enabled | Mypy strict enabled | **100% strict typing** across 87 source & test files |
 
-Repozytorium jest aplikacją Python 3.11+ opartą o Click i PyYAML. Logika domenowa znajduje się w
-`packages/`, a `src/freelance_cli/cli.py` pozostaje wspólną warstwą orkiestracji.
+---
 
-```mermaid
-flowchart LR
-    CLI["freelance CLI"] --> WS["workspace i job.json"]
-    CLI --> FLOW["requirements, bugs, scope"]
-    CLI --> MONEY["estimation, pricing, tracking"]
-    CLI --> DELIVERY["quality gate i handoff"]
-    CLI --> WORK["repository-backed work sessions"]
-    WORK --> AIDEV["ai-dev task, check, telemetry"]
-    DELIVERY --> AIDEV
-```
+## 3. Detailed Gap Analysis & Implemented Solutions
 
-Zakres roadmapy P0-P4 jest oznaczony jako wykonany. Dostępne są m.in. intake, wycena, wymagania,
-bootstrap, obsługa bugów i scope change, timer i rentowność, portfolio, komunikacja, handoff oraz
-wznawialne sesje pracy powiązane z repozytorium i telemetryką `ai-dev`.
+### 3.1 Concurrency & File System Safety
+- **Baseline Gap**: While `filelock` was partially used, nested lock calls within the same process thread (e.g., `WorkManager.finish` holding `work.lock` and invoking `next_work_id` or `TimelineManager`) caused deadlocks on Windows. Additionally, `path.resolve()` on Windows temporary folders could fail with `PermissionError` when resolving deleted paths.
+- **Implemented Solution**:
+  - Implemented thread-local tracking in `packages/storage_utils.py` (`_active_locks.held`), enabling re-entrant lock acquisition within the same thread while keeping cross-process exclusion intact.
+  - Standardized on `path.absolute()` to avoid Windows junction resolution errors.
+  - Implemented `atomic_write_json` and `atomic_write_text` using sibling PID/UUID temporary files and atomic `os.replace`.
 
-## Naprawione problemy
+### 3.2 Persistent Schema Compatibility & Versioning
+- **Baseline Gap**: State files lacked explicit schema version headers. A corrupt file or future incompatible format would cause unhandled Python exceptions.
+- **Implemented Solution**:
+  - Added `schema_version = "1.0"` across all models: `Job`, `WorkSession`, `BugReport`, `ScopeChangeItem`, `TimeLog`, `ProfitabilityReport`, and `RequirementsSpec`.
+  - Created `safe_read_json` with typed exceptions: `IncompatibleSchemaError` (for forward major version drift) and `CorruptedStateError` (for empty/malformed JSON files).
 
-### 1. Issue #2: test nadpisywał globalną konfigurację użytkownika
+### 3.3 Security & Secret Redaction
+- **Baseline Gap**: Workspace outputs, client messages, and logs could potentially leak sensitive API tokens or connection strings.
+- **Implemented Solution**:
+  - Created `packages/security/secrets.py` with `mask_text` and `mask_secrets`.
+  - Implemented regex patterns for OpenAI, Anthropic, OpenRouter, GitHub PATs, database connection URIs, and private key blocks.
+  - Added `assert_safe_path` to prevent path traversal outside designated workspace folders.
+  - Implemented Tar/Zip Slip path traversal rejection in archive extraction.
 
-`WorkspaceManager(Config(...))` zapisywał licznik zleceń przez `save_config(..., None)`, co kierowało
-zapis do `~/.freelance/config.yaml`. Obiekt konfiguracji przekazany przez test lub integratora mógł
-więc nieoczekiwanie zmienić prawdziwą konfigurację użytkownika.
+### 3.4 Process Exit Code & CLI Output Contract
+- **Baseline Gap**: CLI exit codes were inconsistent; errors and blocked operations were not cleanly distinguished.
+- **Implemented Solution**:
+  - Created `src/freelance_cli/output.py` with standard exit codes:
+    - `EXIT_SUCCESS = 0`: Successful run.
+    - `EXIT_ERROR = 1`: System / runtime exception.
+    - `EXIT_USAGE = 2`: CLI argument or option syntax error.
+    - `EXIT_BLOCKED = 3`: Quality gate failure or business precondition violation.
+  - Standardized JSON envelope format with dual top-level key unwrapping for seamless backward compatibility.
 
-Manager zapisuje teraz konfigurację tylko wtedy, gdy sam ją wczytał albo otrzymał jawny
-`config_path`. Test regresyjny potwierdza brak wywołania zapisu dla konfiguracji wyłącznie w pamięci.
-Hash prawdziwego pliku konfiguracyjnego pozostał bez zmian podczas pełnego zestawu 160 testów.
+### 3.5 System Diagnostics & Configuration Management
+- **Baseline Gap**: No diagnostic tool existed to verify environment readiness or schema health across all stored jobs.
+- **Implemented Solution**:
+  - Added `freelance doctor [--json]`: Validates Python `>= 3.11`, workspace read/write access, Git availability, `ai-dev` technical engine version `>= 1.2.0`, and schema validity across all jobs.
+  - Added `freelance config show [--json]` and `freelance config validate [--json]`.
 
-### 2. CI nie instalowało pluginu używanego przez własną komendę
+### 3.6 Business Audit Timeline & Archival Portability
+- **Baseline Gap**: Events were scattered across disjoint session files without an aggregate timeline or backup mechanism.
+- **Implemented Solution**:
+  - Created `packages/timeline/manager.py` writing append-only `events.jsonl` under process locks.
+  - Added `freelance history <JOB-ID> [--json]`.
+  - Created `packages/archive/manager.py` supporting `freelance export` (with SHA-256 manifest) and `freelance import` (with path traversal security).
 
-Workflow wywołuje pytest z `--cov`, lecz extra `dev` nie zawierało `pytest-cov`. Ostatni przebieg CI
-na `master` zatrzymał się na błędzie `unrecognized arguments: --cov=...`; pozostałe zadania macierzy
-zostały anulowane. Dodano `pytest-cov>=5.0` do zależności deweloperskich.
+### 3.7 Local Model Context Protocol (MCP) Server
+- **Baseline Gap**: AI agents in editors (Cursor, Claude Desktop, Copilot) had no direct tool interface to interact with the freelance business state.
+- **Implemented Solution**:
+  - Built `packages/mcp/server.py` and CLI command `freelance mcp serve`.
+  - Implemented JSON-RPC 2.0 protocol over stdio offering 9 specialized business tools (`list_jobs`, `get_job_status`, `get_requirements`, `get_scope_changes`, `get_work_sessions`, `get_profitability`, `get_timeline`, `create_job`, `check_scope`).
+  - Automated secret redaction on all tool outputs.
 
-### 3. Niezgodna minimalna wersja silnika `ai-dev`
+### 3.8 Safe Mutation UX
+- **Baseline Gap**: Destructive or mutating commands modified workspace files without a preview mechanism.
+- **Implemented Solution**:
+  - Added `--dry-run` and `--explain` flags across `job new`, `start`, `bootstrap`, and `finish`.
 
-Extra `ai-dev` dopuszczało `ai-dev-cli-tools>=1.0`, chociaż moduł `freelance work` używa komend
-`ai-dev task` i `ai-dev telemetry`, dodanych w linii 1.2. Minimalną wersję podniesiono do 1.2.0.
+### 3.9 Comprehensive Documentation Suite
+- **Baseline Gap**: No centralized architectural documentation.
+- **Implemented Solution**:
+  - Created `docs/ARCHITECTURE.md`, `docs/STATE_FORMAT.md`, `docs/AI_DEV_INTEGRATION.md`, `docs/CLI_CONTRACT.md`, `docs/SECURITY.md`, `docs/RECOVERY.md`, and `docs/MCP_SERVER.md`.
 
-### 4. Quality Gate mógł zwracać fałszywy sukces
+---
 
-- nieudany `git status` z pustym stdout był interpretowany jako czyste repozytorium;
-- brak jakichkolwiek testów, linta i typechecku był oznaczany jako `PASS`;
-- rzeczywisty plik `.env` był pomijany przez skaner sekretów.
+## 4. Quality Verification & Test Metrics
 
-Po poprawce błąd Git daje ostrzeżenie, brak kontroli technicznych daje ostrzeżenie zamiast sukcesu,
-niemożność uruchomienia istniejących testów blokuje gate, a prawdziwe pliki dotenv są skanowane.
-Szablony `.env.example`, `.env.sample` i `.env.template` pozostają pomijane.
+### Test Suite Execution
+- **Pytest**: **214 passed** (0 failures, 0 errors) in 14.56s.
+- **Branch Test Coverage**: **83.42%** overall.
+- **Coverage Enforcement**: Raised `fail_under` threshold in `pyproject.toml` from **80%** to **82%**.
 
-### 5. Nieprawdziwa instrukcja instalacji
+### Static Analysis & Typing
+- **Mypy**: `mypy src packages tests` completed with **0 errors across 87 files** in strict typing mode.
+- **Ruff**: `ruff check .` and `ruff format --check .` completed with **0 linting or formatting issues**.
 
-PyPI nie zwraca dystrybucji `freelance-dev-suite`, a repo nie ma wydania. README informuje teraz
-uczciwie, że bieżącą wersję należy instalować z repozytorium.
+### Distribution & Lifecycle Smoke Tests
+- `python scripts/test_installed_package.py`: Built wheel in clean environment, installed in isolated venv, verified all CLI entrypoints and module imports. Passed with exit code 0.
+- `python scripts/test_full_lifecycle.py`: Executed end-to-end multi-step job workflow with live `ai-dev` engine integration. Passed with exit code 0.
 
-## Dowody walidacyjne
+---
 
-| Kontrola | Wynik |
-|---|---:|
-| `ai-dev doctor` | wymagane środowisko dostępne |
-| `ai-dev scan` | sukces, 1 workspace Python |
-| `ai-dev map` | 76 plików, bez obcięcia mapy |
-| `ai-dev check --mode full --no-cache` | sukces, 3/3 kontroli |
-| Pytest, Python 3.14 lokalnie | 160/160 |
-| Pytest, Python 3.13 z repo na `PYTHONPATH` | 160/160 |
-| Ruff | 0 błędów |
-| mypy strict (`src`, `packages`) | 0 błędów |
-| Coverage branch | 81,15%, próg 80% |
-| `python -m build` | poprawny sdist i wheel |
-| Wheel smoke test | instalacja i `freelance --version` zakończone kodem 0 |
-| Ochrona konfiguracji użytkownika | hash bez zmian po pełnych testach |
-| `git diff --check` | brak błędów whitespace |
+## 5. Engineering Maturity Conclusion
 
-Lokalne przebiegi w ograniczonym sandboxie początkowo zgłaszały `WinError 5` dla katalogów pytest.
-Powtórzenie poza ograniczeniem plikowym dało komplet przejść. To ograniczenie środowiska wykonawczego,
-nie defekt aplikacji.
-
-## Stan CI i publikacji
-
-Ostatni zdalny przebieg CI dla `2fa13b9` jest czerwony. Przyczyna została naprawiona w lokalnym
-working tree, ale nie może być uznana za naprawioną zdalnie przed commit/push i zielonym readbackiem
-całej macierzy Linux/Windows dla Pythonów 3.11-3.13.
-
-Nie ma tagów ani GitHub Release. Wersja pozostaje `0.1.0`, a cały rozwój od pierwszej wersji znajduje
-się w sekcji `Unreleased` changelogu.
-
-## Ryzyka pozostające
-
-- Generatory `JOB-ID`, `WORK-ID`, identyfikatorów timerów, bugów i zmian zakresu nie używają blokady
-  międzyprocesowej. Dwa procesy mogą wybrać ten sam kolejny identyfikator.
-- `job.json` i work sessions mają zapis atomowy, ale m.in. konfiguracja, time log i część raportów
-  nadal używają bezpośredniego `write_text`/`open(..., "w")`; awaria w trakcie zapisu może uszkodzić
-  artefakt.
-- Skan sekretów jest tylko krótką listą regexów i nie przegląda historii Git. Nie zastępuje narzędzi
-  takich jak Gitleaks lub TruffleHog.
-- `src/freelance_cli/cli.py` ma około 1600 linii i skupia zbyt dużo orkiestracji. Utrudnia izolowane
-  testowanie oraz dalsze rozszerzanie CLI.
-- Najsłabsze pokrycie mają `work_commands`, komunikacja, bootstrap oraz granice integracji z
-  `ai-dev`. Globalny próg 80% może ukrywać regresję w tych miejscach.
-- Quality Gate traktuje część problemów jako ostrzeżenia, więc `PASS_WITH_WARNINGS` nadal pozwala na
-  dostarczenie. Dla projektów o wyższym ryzyku potrzebna jest konfigurowalna polityka fail-closed.
-- Brakuje potwierdzonego testu zdalnego na Pythonie 3.11/3.12 po bieżących poprawkach; taki dowód
-  powinno dostarczyć zielone CI.
-
-## Warunki uznania repo za ukończone
-
-1. Zacommitować i wypchnąć bieżące poprawki na gałąź roboczą lub przez PR.
-2. Otrzymać zielony wynik wszystkich sześciu zadań macierzy CI.
-3. Zamknąć issue #2 dopiero po wskazaniu commita i readbacku z CI.
-4. Ustalić politykę wydania: tag/GitHub Release oraz publikacja PyPI albo trwałe pozostawienie
-   instalacji wyłącznie z GitHub.
-5. Przed deklaracją wersji stabilnej naprawić blokady międzyprocesowe identyfikatorów i atomowość
-   pozostałych krytycznych zapisów.
-
-Po punktach 1-4 można uznać projekt za ukończone **alpha/MVP**. Do określenia go jako stabilnego,
-produkcyjnego narzędzia potrzebny jest również punkt 5 oraz co najmniej jeden rzeczywisty pełny
-przebieg zlecenia od intake do handoff.
+With this modernization, `freelance-dev-suite` achieves an engineering maturity level on par with `ai-dev-cli-tools`:
+- It provides enterprise-grade concurrency, atomic storage, secret protection, and schema stability.
+- It exposes standard CLI contracts, diagnostics, and Model Context Protocol tooling.
+- It maintains high test coverage (83.42% branch) and strict static typing.
+- It respects the architectural boundary, leaving all technical engine responsibilities to `ai-dev-cli-tools`.

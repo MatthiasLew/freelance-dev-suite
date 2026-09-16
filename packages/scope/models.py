@@ -32,9 +32,8 @@ class ScopeChangeItem:
     suggested_extra_price_pln: float = 0.0
     impact_assessment: str = ""
     client_proposal_message: str = ""
-    created_at: str = field(
-        default_factory=lambda: datetime.now().astimezone().isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now().astimezone().isoformat())
+    schema_version: str = "1.0"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -77,18 +76,22 @@ class ScopeChangeItem:
         ]
 
         if self.matched_existing_requirements:
-            lines.extend([
-                "## Matched Existing Scope",
-                *[f"- {m}" for m in self.matched_existing_requirements],
-                "",
-            ])
+            lines.extend(
+                [
+                    "## Matched Existing Scope",
+                    *[f"- {m}" for m in self.matched_existing_requirements],
+                    "",
+                ]
+            )
 
         if self.new_functionalities:
-            lines.extend([
-                "## Identified New Functionalities (Out of Scope)",
-                *[f"- {f}" for f in self.new_functionalities],
-                "",
-            ])
+            lines.extend(
+                [
+                    "## Identified New Functionalities (Out of Scope)",
+                    *[f"- {f}" for f in self.new_functionalities],
+                    "",
+                ]
+            )
 
         return "\n".join(lines)
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import datetime
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from enum import StrEnum
 from typing import Any
 
@@ -67,6 +67,8 @@ class Job:
     status_history: list[dict[str, Any]] = field(default_factory=list)
     notes: str = ""
 
+    schema_version: str = "1.0"
+
     def change_status(self, new_status: str, note: str = "") -> None:
         """Transition to a new status and record the change."""
         validated_status = JobStatus(new_status).value
@@ -86,8 +88,10 @@ class Job:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Job:
-        """Deserialize from a plain dict."""
-        return cls(**data)
+        """Deserialize from a plain dict, filtering unknown fields for forward compatibility."""
+        valid_field_names = {f.name for f in fields(cls)}
+        filtered = {k: v for k, v in data.items() if k in valid_field_names}
+        return cls(**filtered)
 
     def summary_line(self) -> str:
         """One-line summary for list display."""

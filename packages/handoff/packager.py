@@ -7,6 +7,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from packages.security.secrets import mask_text
+from packages.storage_utils import atomic_write_text
+
 from .checker import IGNORED_DIRECTORIES
 from .models import HandoffPackage, QualityGateReport
 
@@ -35,39 +38,39 @@ class HandoffPackager:
 
         # 1. README_CLIENT.md
         client_readme_path = output_dir / "README_CLIENT.md"
-        client_readme_path.write_text(
-            self._render_client_readme(job, project_dir, now_str),
-            encoding="utf-8",
+        atomic_write_text(
+            client_readme_path,
+            mask_text(self._render_client_readme(job, project_dir, now_str)),
         )
         created_files.append("README_CLIENT.md")
 
         # 2. INSTALLATION.md
         install_path = output_dir / "INSTALLATION.md"
-        install_path.write_text(
-            self._render_installation_guide(job, project_dir),
-            encoding="utf-8",
+        atomic_write_text(
+            install_path,
+            mask_text(self._render_installation_guide(job, project_dir)),
         )
         created_files.append("INSTALLATION.md")
 
         # 3. USER_GUIDE.md
         user_guide_path = output_dir / "USER_GUIDE.md"
-        user_guide_path.write_text(
-            self._render_user_guide(job, project_dir),
-            encoding="utf-8",
+        atomic_write_text(
+            user_guide_path,
+            mask_text(self._render_user_guide(job, project_dir)),
         )
         created_files.append("USER_GUIDE.md")
 
         # 4. CHANGELOG.md
         changelog_path = output_dir / "CHANGELOG.md"
         changelog_content = self._extract_changelog(project_dir)
-        changelog_path.write_text(changelog_content, encoding="utf-8")
+        atomic_write_text(changelog_path, mask_text(changelog_content))
         created_files.append("CHANGELOG.md")
 
         # 5. TEST_REPORT.md
         test_report_path = output_dir / "TEST_REPORT.md"
-        test_report_path.write_text(
-            self._render_test_report(job, quality_report, now_str),
-            encoding="utf-8",
+        atomic_write_text(
+            test_report_path,
+            mask_text(self._render_test_report(job, quality_report, now_str)),
         )
         created_files.append("TEST_REPORT.md")
 
@@ -78,7 +81,7 @@ class HandoffPackager:
             if requirements_spec
             else f"# Requirements — {job.id}\n\nNo specification was tracked."
         )
-        req_path.write_text(req_content, encoding="utf-8")
+        atomic_write_text(req_path, mask_text(req_content))
         created_files.append("REQUIREMENTS.md")
 
         # 7. release.zip

@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 
-from packages.storage_utils import atomic_write_text
+from packages.storage_utils import (
+    StateError,
+    atomic_write_json,
+    atomic_write_text,
+    safe_read_json,
+    storage_lock,
+)
 
 from .models import BugReport, BugSeverity, BugStatus
 
@@ -144,18 +149,20 @@ class BugProcessor:
         )
 
     def next_bug_id(self, job_dir: Path) -> str:
-        """Generate next sequential bug ID: BUG-001, BUG-002, etc."""
-        bugs_dir = job_dir / "work" / "bugs"
-        if not bugs_dir.exists():
-            return "BUG-001"
+        """Generate next sequential bug ID under lock: BUG-001, BUG-002, etc."""
+        lock_path = job_dir / "work" / ".bugs.lock"
+        with storage_lock(lock_path):
+            bugs_dir = job_dir / "work" / "bugs"
+            if not bugs_dir.exists():
+                return "BUG-001"
 
-        highest = 0
-        for p in bugs_dir.glob("BUG-*.json"):
-            m = re.match(r"^BUG-(\d+)\.json$", p.name)
-            if m:
-                highest = max(highest, int(m.group(1)))
+            highest = 0
+            for p in bugs_dir.glob("BUG-*.json"):
+                m = re.match(r"^BUG-(\d+)\.json$", p.name)
+                if m:
+                    highest = max(highest, int(m.group(1)))
 
-        return f"BUG-{highest + 1:03d}"
+            return f"BUG-{highest + 1:03d}"
 
     def save_bug(self, bug: BugReport, job_dir: Path) -> dict[str, Path]:
         """Persist bug JSON, Markdown summary, questions doc, and reproduction script."""
@@ -166,7 +173,7 @@ class BugProcessor:
 
         # 1. JSON Data
         json_path = bugs_dir / f"{bug.id}.json"
-        atomic_write_text(json_path, json.dumps(bug.to_dict(), indent=2, ensure_ascii=False) + "\n")
+        atomic_write_json(json_path, bug.to_dict())
         paths["json"] = json_path
 
         # 2. Markdown Summary
@@ -196,10 +203,9 @@ class BugProcessor:
             return None
 
         try:
-            with open(json_path, encoding="utf-8") as f:
-                data = json.load(f)
+            data = safe_read_json(json_path)
             return BugReport.from_dict(data)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, StateError, ValueError, TypeError):
             return None
 
     def list_bugs(self, job_dir: Path) -> list[BugReport]:
@@ -211,9 +217,8 @@ class BugProcessor:
         bugs: list[BugReport] = []
         for p in sorted(bugs_dir.glob("BUG-*.json")):
             try:
-                with open(p, encoding="utf-8") as f:
-                    bugs.append(BugReport.from_dict(json.load(f)))
-            except (OSError, json.JSONDecodeError):
+                data = safe_read_json(p)
+                bugs.append(BugReport.from_dict(data))
+            except (OSError, StateError, ValueError, TypeError):
                 continue
-
         return bugs
