@@ -18,6 +18,13 @@
 - **Test Suite & Coverage**: Added 53 new tests (214 total passing tests) increasing branch coverage to 83.42% and raising enforcement threshold in `pyproject.toml` to 82%.
 
 
+### Fixed
+- **Timer Concurrency Race Condition**: Resolved race condition in `test_concurrent_timer_session_ids` by properly synchronizing timer session lifecycles on the same job with `storage_lock`, matching the data model semantics where a job has at most one active timer session. Added multi-job parallel timer tests.
+- **Gitleaks Secret Scanning**: Configured repository `.gitleaks.toml` allowlist and `.gitleaksignore` for controlled synthetic dummy tokens used in secret masking unit tests, preserving strict repository-wide secret detection.
+- **Documentation & Relative Paths**: Replaced local file URLs in `README.md` with standard relative documentation links and added repository status badges (CI, CodeQL, PyPI, Python 3.11+, License). Removed local developer paths in audit reports.
+- **Release Readiness & Tasks**: Updated `TODO.md` to reflect completed Trusted Publisher configuration and current project milestones.
+
+
 ## 0.1.1 — 2026-09-08
 
 ### Added

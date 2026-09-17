@@ -18,7 +18,7 @@
 - [x] add repository-history secret scanning
 - [x] add tag-based Trusted Publishing and GitHub releases
 - [x] split the CLI entrypoint into command-family modules
-- [ ] configure the PyPI Trusted Publisher before creating the first release tag
+- [x] configure the PyPI Trusted Publisher (completed for v0.1.0 and v0.1.1 releases)
 
 
 ## P1 — First clients
@@ -63,3 +63,11 @@
 - [x] complete engineering documentation suite in `docs/`
 - [x] automated GitHub Actions CodeQL security scanning
 - [x] branch test coverage boosted to 83.42% (fail_under raised to 82%)
+
+## Next Release Readiness & Release Polish
+
+- [x] fix timer session concurrency race condition in test suite
+- [x] configure Gitleaks allowlist and safe test fixtures for secret masking validation
+- [x] remove local paths and update documentation links in README
+- [x] add CI, CodeQL, PyPI, Python, and License status badges to README
+- [ ] prepare next release (recommended v0.2.0 due to enterprise architecture additions)
