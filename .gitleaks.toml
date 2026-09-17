@@ -1,4 +1,4 @@
-﻿# Gitleaks configuration for freelance-dev-suite
+# Gitleaks configuration for freelance-dev-suite
 # Preserves strict secret detection repository-wide while allowlisting
 # controlled synthetic test fixtures used for secret masking validation.
 
