@@ -1,0 +1,16 @@
+﻿# Gitleaks configuration for freelance-dev-suite
+# Preserves strict secret detection repository-wide while allowlisting
+# controlled synthetic test fixtures used for secret masking validation.
+
+title = "freelance-dev-suite gitleaks configuration"
+
+[allowlist]
+description = "Allow synthetic dummy tokens used in secret redaction unit tests"
+paths = [
+    '''tests/test_secrets_security\.py''',
+]
+regexes = [
+    '''sk-abcdef1234567890abcdef1234567890''',
+    '''sk-proj-1234567890abcdef1234567890''',
+    '''sk-testdummy[0-9a-zA-Z_-]+''',
+]

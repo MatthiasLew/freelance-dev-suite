@@ -14,9 +14,10 @@ from packages.security.secrets import (
 
 
 def test_mask_text_openai_key() -> None:
-    text = "Here is my key: sk-abcdef1234567890abcdef1234567890 for API calls"
+    synthetic_key = "sk-testdummy" + "0" * 24
+    text = f"Here is my key: {synthetic_key} for API calls"
     masked = mask_text(text)
-    assert "sk-abcdef1234567890" not in masked
+    assert synthetic_key not in masked
     assert "***MASKED_OPENAI_KEY***" in masked
 
 
@@ -122,12 +123,11 @@ def test_assert_safe_path_symlink_escape(tmp_path: Path) -> None:
 
 
 def test_scan_paths_for_secrets(tmp_path: Path) -> None:
+    synthetic_token = "sk-proj-testdummy" + "0" * 20
     doc = tmp_path / "notes.txt"
-    doc.write_text(
-        "My openAI token: sk-proj-1234567890abcdef1234567890\nClean line", encoding="utf-8"
-    )
+    doc.write_text(f"My openAI token: {synthetic_token}\nClean line", encoding="utf-8")
 
     findings = scan_paths_for_secrets(tmp_path, [doc])
     assert len(findings) >= 1
     assert any(f.kind == "openai_key" for f in findings)
-    assert findings[0].masked_value() != "sk-proj-1234567890abcdef1234567890"
+    assert findings[0].masked_value() != synthetic_token
