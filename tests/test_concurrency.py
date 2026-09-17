@@ -107,15 +107,16 @@ def test_concurrent_work_id_generation(tmp_path: Path) -> None:
 
 
 def test_concurrent_timer_session_ids(tmp_path: Path) -> None:
-    """Concurrent start_timer calls produce unique session IDs."""
+    """Concurrent start_timer/stop_timer sessions on the same job produce unique session IDs."""
     job_dir = tmp_path / "active" / "JOB-001"
     job_dir.mkdir(parents=True, exist_ok=True)
     timer = WorkTimer()
 
     def timer_worker(idx: int) -> str:
-        entry = timer.start_timer(job_dir, "JOB-001", activity=f"Task {idx}")
-        timer.stop_timer(job_dir, "JOB-001")
-        return entry.id
+        with storage_lock(job_dir / "work" / ".time-log.lock"):
+            entry = timer.start_timer(job_dir, "JOB-001", activity=f"Task {idx}")
+            timer.stop_timer(job_dir, "JOB-001")
+            return entry.id
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
         futures = [executor.submit(timer_worker, i) for i in range(6)]
@@ -123,3 +124,25 @@ def test_concurrent_timer_session_ids(tmp_path: Path) -> None:
 
     assert len(entry_ids) == 6
     assert len(set(entry_ids)) == 6
+    assert all(e.startswith("SESSION-") for e in entry_ids)
+
+
+def test_concurrent_timers_multiple_jobs(tmp_path: Path) -> None:
+    """Concurrent timers across distinct jobs run without cross-job lock contention."""
+    timer = WorkTimer()
+
+    def job_worker(idx: int) -> str:
+        job_id = f"JOB-{idx:03d}"
+        job_dir = tmp_path / "active" / job_id
+        job_dir.mkdir(parents=True, exist_ok=True)
+        entry = timer.start_timer(job_dir, job_id, activity=f"Work on {job_id}")
+        stopped = timer.stop_timer(job_dir, job_id, note="Done")
+        assert stopped.id == entry.id
+        return entry.id
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+        futures = [executor.submit(job_worker, i) for i in range(6)]
+        results = [f.result() for f in futures]
+
+    assert len(results) == 6
+    assert all(r == "SESSION-001" for r in results)
