@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+
+## 0.2.0 — 2026-09-17
+
 ### Added
 - **Storage & Schema Compatibility**: Persistent schema versioning (`1.0`) across all models (`Job`, `WorkSession`, `BugReport`, `ScopeChangeItem`, `TimeLog`, `ProfitabilityReport`, `RequirementsSpec`) with `safe_read_json`, `IncompatibleSchemaError`, and `CorruptedStateError`.
 - **Concurrency & Re-Entrancy**: Cross-process file locking with thread-local re-entrant lock tracking (`storage_lock`) resolving nested calls and Windows temporary path resolution issues.
@@ -19,7 +22,8 @@
 
 
 ### Fixed
-- **Timer Concurrency Race Condition**: Resolved race condition in `test_concurrent_timer_session_ids` by properly synchronizing timer session lifecycles on the same job with `storage_lock`, matching the data model semantics where a job has at most one active timer session. Added multi-job parallel timer tests.
+- **Timer Concurrency Testing**: Aligned timer concurrency tests with the single-active-session-per-job model (`TimeLog.active_entry` stores one active session per job, `start_timer()` returns existing active timer if running, `stop_timer()` closes current timer) and added parallel multi-job test coverage.
+- **Benchmark Tolerances**: Adjusted scale benchmark assertions in `tests/test_benchmarks.py` to tolerate virtualized disk I/O latency under CI.
 - **Gitleaks Secret Scanning**: Configured repository `.gitleaks.toml` allowlist and `.gitleaksignore` for controlled synthetic dummy tokens used in secret masking unit tests, preserving strict repository-wide secret detection.
 - **Documentation & Relative Paths**: Replaced local file URLs in `README.md` with standard relative documentation links and added repository status badges (CI, CodeQL, PyPI, Python 3.11+, License). Removed local developer paths in audit reports.
 - **Release Readiness & Tasks**: Updated `TODO.md` to reflect completed Trusted Publisher configuration and current project milestones.

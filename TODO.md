@@ -64,10 +64,10 @@
 - [x] automated GitHub Actions CodeQL security scanning
 - [x] branch test coverage boosted to 83.42% (fail_under raised to 82%)
 
-## Next Release Readiness & Release Polish
+## Release v0.2.0 Readiness & Polish
 
-- [x] fix timer session concurrency race condition in test suite
+- [x] align timer concurrency tests with single-active-session-per-job model and add multi-job coverage
 - [x] configure Gitleaks allowlist and safe test fixtures for secret masking validation
 - [x] remove local paths and update documentation links in README
 - [x] add CI, CodeQL, PyPI, Python, and License status badges to README
-- [ ] prepare next release (recommended v0.2.0 due to enterprise architecture additions)
+- [x] prepare package metadata, CHANGELOG, and test suite for v0.2.0 release
