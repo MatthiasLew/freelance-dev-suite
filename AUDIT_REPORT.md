@@ -1,7 +1,7 @@
 # Engineering Maturity Audit & Modernization Report
 
-**Target Repository**: `freelance-dev-suite` (`c:\Users\Praca\fork\MatthiasLew\freelance-dev-suite`)  
-**Reference Repository**: `ai-dev-cli-tools` (`c:\Users\Praca\fork\MatthiasLew\ai-dev-cli-tools`)  
+**Target Repository**: `freelance-dev-suite` (`https://github.com/MatthiasLew/freelance-dev-suite`)  
+**Reference Repository**: `ai-dev-cli-tools` (`https://github.com/MatthiasLew/ai-dev-cli-tools`)  
 **Date**: September 2026  
 **Status**: Completed & Verified  
 

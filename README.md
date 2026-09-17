@@ -1,5 +1,11 @@
 # Freelance Dev Suite
 
+[![CI](https://github.com/MatthiasLew/freelance-dev-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/MatthiasLew/freelance-dev-suite/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/MatthiasLew/freelance-dev-suite/actions/workflows/codeql.yml/badge.svg)](https://github.com/MatthiasLew/freelance-dev-suite/actions/workflows/codeql.yml)
+[![PyPI](https://img.shields.io/pypi/v/freelance-dev-suite.svg)](https://pypi.org/project/freelance-dev-suite/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 CLI toolkit for managing freelance development jobs — from intake and estimation through implementation to client handoff.
 
 ## Problem
@@ -192,15 +198,15 @@ evidence.
 
 ## Documentation
 
-Comprehensive engineering documentation is available in the [`docs/`](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs) directory:
+Comprehensive engineering documentation is available in the [`docs/`](docs) directory:
 
-- [System Architecture](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/ARCHITECTURE.md): Layer boundary, component design, concurrency model, and atomic storage.
-- [State Format & Schema Compatibility](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/STATE_FORMAT.md): Detailed JSON schemas, versioning policy, and persistent structures.
-- [ai-dev Technical Engine Integration](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/AI_DEV_INTEGRATION.md): Public CLI integration points, subprocess contract, and fallbacks.
-- [CLI Contract & Exit Codes](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/CLI_CONTRACT.md): Standard exit codes (`0`, `1`, `2`, `3`), structured envelopes, `--dry-run`, and `--explain`.
-- [Security & Secret Redaction](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/SECURITY.md): Multi-provider secret masking, path traversal guards, and archive protection.
-- [Disaster Recovery & Diagnostics](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/RECOVERY.md): `freelance doctor`, stale lock resolution, and archive backup/import.
-- [Model Context Protocol (MCP) Server](file:///c:/Users/Praca/fork/MatthiasLew/freelance-dev-suite/docs/MCP_SERVER.md): Configuration guide for Cursor, Claude Desktop, and VS Code.
+- [System Architecture](docs/ARCHITECTURE.md): Layer boundary, component design, concurrency model, and atomic storage.
+- [State Format & Schema Compatibility](docs/STATE_FORMAT.md): Detailed JSON schemas, versioning policy, and persistent structures.
+- [ai-dev Technical Engine Integration](docs/AI_DEV_INTEGRATION.md): Public CLI integration points, subprocess contract, and fallbacks.
+- [CLI Contract & Exit Codes](docs/CLI_CONTRACT.md): Standard exit codes (`0`, `1`, `2`, `3`), structured envelopes, `--dry-run`, and `--explain`.
+- [Security & Secret Redaction](docs/SECURITY.md): Multi-provider secret masking, path traversal guards, and archive protection.
+- [Disaster Recovery & Diagnostics](docs/RECOVERY.md): `freelance doctor`, stale lock resolution, and archive backup/import.
+- [Model Context Protocol (MCP) Server](docs/MCP_SERVER.md): Configuration guide for Cursor, Claude Desktop, and VS Code.
 
 ## Local MCP Server (Cursor & Claude)
 
