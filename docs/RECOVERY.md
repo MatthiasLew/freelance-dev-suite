@@ -19,7 +19,7 @@ freelance doctor --json
 2. **Workspace Permissions**: Ensures read/write accessibility to `~/.freelance` and active job folders.
 3. **Git Tooling**: Verifies git executable presence and operational health.
 4. **ai-dev Technical Engine**: Verifies `ai-dev` installation and version (`>= 1.2.0`).
-5. **Persistent State Integrity**: Reads every `job.json` in `active/` and `completed/`, checking schema version and JSON validity.
+5. **Persistent State Integrity**: Reads every `job.json` in `active/`, checking schema version and JSON validity.
 
 If any job record is unparseable or outdated, `freelance doctor` highlights the specific file path.
 

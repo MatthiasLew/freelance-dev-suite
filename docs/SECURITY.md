@@ -1,6 +1,6 @@
 # Security & Secret Hardening Guide
 
-`freelance-dev-suite` manages commercial agreements, client codebase paths, and deliverables. To ensure enterprise-grade security and confidentiality, the suite implements multi-layered protections.
+`freelance-dev-suite` manages commercial agreements, client codebase paths, and deliverables. To ensure robust security and confidentiality, the suite implements multi-layered protections.
 
 ---
 
@@ -9,12 +9,12 @@
 All text emitted through the CLI, generated in client messages, served via MCP, or written to handoff packages passes through `mask_text` to prevent accidental credential leakage.
 
 ### Detected and Redacted Patterns:
-- **OpenAI API Keys**: `sk-[A-Za-z0-9]{20,T3BlbkFJ[A-Za-z0-9]{20,}}` -> `[REDACTED-OPENAI-KEY]`
-- **Anthropic API Keys**: `sk-ant-[A-Za-z0-9_-]{20,}` -> `[REDACTED-ANTHROPIC-KEY]`
-- **OpenRouter API Keys**: `sk-or-[A-Za-z0-9_-]{20,}` -> `[REDACTED-OPENROUTER-KEY]`
-- **GitHub Personal Access Tokens**: `ghp_...`, `gho_...`, `ghu_...`, `ghs_...`, `ghr_...` -> `[REDACTED-GITHUB-TOKEN]`
-- **Database Connection Strings**: `postgres://...`, `mysql://...`, `mongodb://...` -> Redacts embedded password credentials.
-- **Private Key Blocks**: `-----BEGIN (RSA|EC|OPENSSH|DSA|PRIVATE) KEY-----...` -> `[REDACTED-PRIVATE-KEY]`
+- **OpenAI API Keys**: `sk-...` -> `***MASKED_OPENAI_KEY***`
+- **Anthropic API Keys**: `sk-ant-...` -> `***MASKED_ANTHROPIC_KEY***`
+- **OpenRouter API Keys**: `sk-or-...` -> `***MASKED_OPENROUTER_KEY***`
+- **GitHub Personal Access Tokens**: `ghp_...`, `gho_...`, `ghu_...`, `ghs_...`, `ghr_...` -> `***MASKED_GITHUB_TOKEN***`
+- **Database Connection Strings**: `postgres://...`, `mysql://...`, `mongodb://...`, `redis://...` -> `***MASKED_CONNECTION_STRING***`
+- **Private Key Blocks**: `-----BEGIN [A-Z ]*PRIVATE KEY-----...` -> `***MASKED_PRIVATE_KEY***`
 
 ---
 
@@ -38,6 +38,6 @@ During `freelance import`:
 
 ## 4. Atomic & Safe File Persistence
 
-- File updates use temporary files (`.tmp`) followed by atomic rename (`os.replace`) to prevent file corruption during sudden system termination or process kill.
-- Sensitive state files are written with restricted file permissions on POSIX systems (`0o600` / `0o700`).
-- Process-level locking (`storage_lock`) prevents race conditions between parallel CLI processes.
+- File updates use sibling temporary files (`.tmp`) followed by atomic rename (`os.replace`) to prevent file corruption during sudden system termination or process kill.
+- Process-level locking (`storage_lock`) with thread-local re-entrancy tracking prevents race conditions between parallel CLI processes.
+

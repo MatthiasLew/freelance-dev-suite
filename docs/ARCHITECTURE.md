@@ -1,6 +1,6 @@
 # Architecture & System Design
 
-`freelance-dev-suite` is an open-source, production-grade CLI toolkit designed for freelance software engineers and boutique technical consultancies.
+`freelance-dev-suite` is an open-source CLI toolkit designed for freelance software engineers and boutique technical consultancies.
 
 It manages the entire commercial and operational lifecycle of software engagements—from intake, estimation, and formal requirements to scoped implementation sessions, change detection, client communications, quality gates, and project delivery.
 
@@ -64,7 +64,7 @@ All persistent state is stored locally inside the configured workspace root (def
 
 ```text
 ~/.freelance/
-├── config.json                 # Global configuration (hourly rate, currencies, templates)
+├── config.yaml                 # Global configuration (hourly rate, currencies, templates)
 ├── .timeline.lock              # Process lock for global events
 ├── active/                     # Currently active client jobs
 │   └── JOB-001-client-slug/
@@ -78,7 +78,7 @@ All persistent state is stored locally inside the configured workspace root (def
 │       │   ├── baseline.json   # Initial baseline requirement snapshot
 │       │   └── changes.json    # Detected scope changes & surcharges
 │       ├── work/
-│       │   ├── timer.json      # Active timer state
+│       │   ├── time-log.json   # Recorded time log & active timer state
 │       │   └── sessions/
 │       │       ├── WORK-001.json # Tracked session with diffs & summaries
 │       │       └── WORK-002.json
@@ -89,7 +89,7 @@ All persistent state is stored locally inside the configured workspace root (def
 │       │   └── HANDOFF.md        # Generated client deliverable guide
 │       └── history/
 │           └── events.jsonl    # Append-only chronological business timeline
-└── completed/                  # Archived / finalized client jobs
+└── finished/                   # Archived / finalized client jobs
     └── JOB-000-sample/
 ```
 
