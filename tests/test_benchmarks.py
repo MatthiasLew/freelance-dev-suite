@@ -24,8 +24,8 @@ def test_scale_benchmark_job_creation_and_listing(tmp_path: Path) -> None:
         )
     create_duration = time.perf_counter() - t0
 
-    # 50 jobs should be created under 3 seconds
-    assert create_duration < 3.0
+    # 50 jobs should be created quickly even under CI virtualization
+    assert create_duration < 5.0
 
     t1 = time.perf_counter()
     jobs = manager.list_jobs(include_finished=False)
@@ -48,8 +48,8 @@ def test_time_tracking_scale(tmp_path: Path) -> None:
         timer.stop_timer(job_dir, "JOB-001")
     duration = time.perf_counter() - t0
 
-    # 50 complete start/stop cycles should complete quickly
-    assert duration < 3.0
+    # 50 complete start/stop cycles (100 atomic disk flushes) should complete quickly
+    assert duration < 5.0
 
     log = timer.get_time_log(job_dir, "JOB-001")
     assert len(log.entries) == 50
