@@ -15,6 +15,8 @@ from packages.storage_utils import (
 
 from .models import TimeEntry, TimeLog
 
+_SESSION_ID_PATTERN = re.compile(r"^SESSION-(\d+)$")
+
 
 class TimeTracker:
     """Manages recording work sessions and time logs."""
@@ -34,7 +36,8 @@ class TimeTracker:
     def save_time_log(self, time_log: TimeLog, job_dir: Path) -> Path:
         """Persist TimeLog to job work directory."""
         work_dir = job_dir / "work"
-        work_dir.mkdir(parents=True, exist_ok=True)
+        if not work_dir.exists():
+            work_dir.mkdir(parents=True, exist_ok=True)
 
         log_path = work_dir / "time-log.json"
         atomic_write_json(log_path, time_log.to_dict())
@@ -53,10 +56,15 @@ class TimeTracker:
                 return time_log.active_entry
 
             highest = 0
-            for e in time_log.entries:
-                m = re.match(r"^SESSION-(\d+)$", e.id)
-                if m:
-                    highest = max(highest, int(m.group(1)))
+            if time_log.entries:
+                last_m = _SESSION_ID_PATTERN.match(time_log.entries[-1].id)
+                if last_m:
+                    highest = int(last_m.group(1))
+                else:
+                    for e in time_log.entries:
+                        m = _SESSION_ID_PATTERN.match(e.id)
+                        if m:
+                            highest = max(highest, int(m.group(1)))
 
             entry_id = f"SESSION-{max(highest, len(time_log.entries)) + 1:03d}"
             entry = TimeEntry(
