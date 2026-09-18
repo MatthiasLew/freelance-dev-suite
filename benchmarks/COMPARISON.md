@@ -58,130 +58,123 @@ W ramach zadania przeprowadzono kompleksowy audyt wydajnościowy repozytorium `f
 
 | Scenario | Scale | Baseline Med (ms) | Optimized Med (ms) | Diff (%) | Speedup | Base p95 (ms) | Opt p95 (ms) |
 |---|---|---|---|---|---|---|---|
-| `workspace:create_job` | 10 | 8.33 | 16.07 | **+92.9%** | **0.52x (slower)** | 9.54 | 310.41 |
-| `workspace:list_jobs` | 10 | 0.94 | 2.45 | **+159.5%** | **0.39x (slower)** | 2.02 | 3.73 |
-| `workspace:get_job_first` | 10 | 0.15 | 0.23 | **+53.3%** | **0.65x (slower)** | 0.17 | 0.36 |
-| `workspace:get_job_mid` | 10 | 0.21 | 0.95 | **+344.9%** | **0.22x (slower)** | 0.43 | 3.77 |
-| `workspace:get_job_last` | 10 | 0.19 | 1.24 | **+547.1%** | **0.15x (slower)** | 0.20 | 2.11 |
-| `workspace:get_job_nonexistent` | 10 | 0.13 | 0.20 | **+52.7%** | **0.66x (slower)** | 0.14 | 0.26 |
-| `workspace:get_job_dir` | 10 | 0.07 | 0.10 | **+29.7%** | **0.77x (slower)** | 0.08 | 0.12 |
-| `workspace:update_job` | 10 | 17.40 | 17.73 | **+1.9%** | **0.98x (slower)** | 17.77 | 22.00 |
-| `workspace:archive_job` | 10 | 1.12 | 1.46 | **+29.9%** | **0.77x (slower)** | 1.12 | 1.46 |
-| `workspace:create_job` | 100 | 13.43 | 14.76 | **+9.9%** | **0.91x (slower)** | 20.46 | 18.13 |
-| `workspace:list_jobs` | 100 | 15.78 | 12.14 | **-23.1%** | **1.30x** | 16.78 | 13.26 |
-| `workspace:get_job_first` | 100 | 2.40 | 0.51 | **-78.7%** | **4.70x** | 4.23 | 0.80 |
-| `workspace:get_job_mid` | 100 | 2.50 | 1.36 | **-45.6%** | **1.84x** | 3.82 | 1.60 |
-| `workspace:get_job_last` | 100 | 2.59 | 2.11 | **-18.6%** | **1.23x** | 3.37 | 3.26 |
-| `workspace:get_job_nonexistent` | 100 | 2.45 | 1.93 | **-21.4%** | **1.27x** | 3.71 | 3.02 |
-| `workspace:get_job_dir` | 100 | 2.25 | 1.14 | **-49.1%** | **1.97x** | 2.52 | 1.48 |
-| `workspace:update_job` | 100 | 22.03 | 19.99 | **-9.3%** | **1.10x** | 23.73 | 20.30 |
-| `workspace:archive_job` | 100 | 3.43 | 2.88 | **-16.0%** | **1.19x** | 3.43 | 2.88 |
-| `workspace:create_job` | 1000 | 23.23 | 12.71 | **-45.3%** | **1.83x** | 31.76 | 18.46 |
-| `workspace:list_jobs` | 1000 | 127.18 | 118.76 | **-6.6%** | **1.07x** | 140.82 | 132.22 |
-| `workspace:get_job_first` | 1000 | 2.24 | 0.23 | **-89.6%** | **9.61x** | 3.23 | 0.27 |
-| `workspace:get_job_mid` | 1000 | 4.60 | 1.17 | **-74.5%** | **3.93x** | 5.35 | 1.65 |
-| `workspace:get_job_last` | 1000 | 2.91 | 0.41 | **-85.8%** | **7.03x** | 3.78 | 1.09 |
-| `workspace:get_job_nonexistent` | 1000 | 6.33 | 1.94 | **-69.3%** | **3.26x** | 7.37 | 3.09 |
-| `workspace:get_job_dir` | 1000 | 4.13 | 0.98 | **-76.4%** | **4.24x** | 4.83 | 1.22 |
-| `workspace:update_job` | 1000 | 24.85 | 16.78 | **-32.5%** | **1.48x** | 25.34 | 18.64 |
-| `workspace:archive_job` | 1000 | 3.96 | 1.24 | **-68.6%** | **3.19x** | 3.96 | 1.24 |
-| `timeline:record_event` | 10 | 14.74 | 14.83 | **+0.6%** | **0.99x (slower)** | 20.36 | 23.27 |
-| `timeline:record_event_tail` | 10 | 15.17 | 15.92 | **+4.9%** | **0.95x (slower)** | 23.23 | 23.86 |
-| `timeline:list_events` | 10 | 0.19 | 0.16 | **-11.8%** | **1.13x** | 0.31 | 0.20 |
-| `timeline:record_event` | 100 | 15.61 | 15.45 | **-1.0%** | **1.01x** | 19.77 | 18.52 |
-| `timeline:record_event_tail` | 100 | 15.42 | 14.38 | **-6.7%** | **1.07x** | 17.06 | 16.25 |
-| `timeline:list_events` | 100 | 0.49 | 0.40 | **-18.2%** | **1.22x** | 0.58 | 0.97 |
-| `timeline:record_event` | 1000 | 16.80 | 15.11 | **-10.1%** | **1.11x** | 22.12 | 17.93 |
-| `timeline:record_event_tail` | 1000 | 24.75 | 15.17 | **-38.7%** | **1.63x** | 32.50 | 19.25 |
-| `timeline:list_events` | 1000 | 8.11 | 3.25 | **-60.0%** | **2.50x** | 16.87 | 4.27 |
-| `timer:start_stop_cycle` | 10 | 38.03 | 34.33 | **-9.7%** | **1.11x** | 47.98 | 38.51 |
-| `timer:start_stop_tail` | 10 | 49.86 | 38.83 | **-22.1%** | **1.28x** | 71.85 | 49.61 |
-| `timer:get_time_log` | 10 | 0.55 | 0.14 | **-74.4%** | **3.91x** | 1.58 | 0.18 |
-| `timer:start_stop_cycle` | 50 | 41.54 | 38.36 | **-7.7%** | **1.08x** | 68.42 | 44.96 |
-| `timer:start_stop_tail` | 50 | 34.32 | 46.32 | **+35.0%** | **0.74x (slower)** | 37.51 | 64.63 |
-| `timer:get_time_log` | 50 | 0.21 | 0.23 | **+8.5%** | **0.92x (slower)** | 0.65 | 0.26 |
-| `timer:start_stop_cycle` | 200 | 36.15 | 35.74 | **-1.1%** | **1.01x** | 42.76 | 43.44 |
-| `timer:start_stop_tail` | 200 | 38.24 | 37.92 | **-0.9%** | **1.01x** | 41.84 | 49.74 |
-| `timer:get_time_log` | 200 | 0.52 | 0.78 | **+51.4%** | **0.66x (slower)** | 0.53 | 0.91 |
-| `work_session:create` | 10 | 3.83 | 6.46 | **+68.7%** | **0.59x (slower)** | 5.11 | 10.75 |
-| `work_session:list` | 10 | 0.75 | 1.17 | **+56.3%** | **0.64x (slower)** | 1.98 | 2.04 |
-| `work_session:find_by_id` | 10 | 0.15 | 0.21 | **+40.4%** | **0.71x (slower)** | 0.21 | 0.26 |
-| `work_session:next_id` | 10 | 0.96 | 1.40 | **+45.2%** | **0.69x (slower)** | 1.25 | 2.09 |
-| `work_session:create` | 50 | 4.42 | 4.93 | **+11.6%** | **0.90x (slower)** | 6.57 | 6.21 |
-| `work_session:list` | 50 | 3.42 | 4.44 | **+30.0%** | **0.77x (slower)** | 5.11 | 7.16 |
-| `work_session:find_by_id` | 50 | 0.15 | 0.16 | **+6.7%** | **0.94x (slower)** | 0.16 | 0.17 |
-| `work_session:next_id` | 50 | 1.42 | 1.43 | **+0.9%** | **0.99x (slower)** | 2.53 | 2.29 |
-| `work_session:create` | 150 | 7.45 | 6.21 | **-16.7%** | **1.20x** | 15.82 | 8.71 |
-| `work_session:list` | 150 | 93.26 | 19.27 | **-79.3%** | **4.84x** | 189.53 | 21.85 |
-| `work_session:find_by_id` | 150 | 1.15 | 0.25 | **-78.5%** | **4.66x** | 1.58 | 0.35 |
-| `work_session:next_id` | 150 | 17.09 | 4.35 | **-74.5%** | **3.93x** | 20.79 | 4.55 |
-| `bugs:save_bug` | 10 | 15.94 | 9.01 | **-43.5%** | **1.77x** | 21.31 | 11.06 |
-| `bugs:next_id` | 10 | 3.37 | 1.57 | **-53.5%** | **2.15x** | 9.40 | 1.71 |
-| `bugs:list_bugs` | 10 | 5.84 | 1.29 | **-77.8%** | **4.51x** | 6.56 | 2.08 |
-| `bugs:load_bug` | 10 | 0.54 | 0.12 | **-78.6%** | **4.66x** | 0.66 | 0.29 |
-| `scope:save_change` | 10 | 21.43 | 8.51 | **-60.3%** | **2.52x** | 25.42 | 10.64 |
-| `scope:next_id` | 10 | 6.56 | 1.47 | **-77.5%** | **4.45x** | 7.61 | 1.63 |
-| `scope:list_changes` | 10 | 9.36 | 0.92 | **-90.2%** | **10.19x** | 23.44 | 0.95 |
-| `scope:load_change` | 10 | 0.73 | 0.09 | **-88.2%** | **8.45x** | 0.82 | 0.13 |
-| `bugs:save_bug` | 50 | 19.00 | 9.32 | **-50.9%** | **2.04x** | 33.23 | 13.33 |
-| `bugs:next_id` | 50 | 9.87 | 6.32 | **-36.0%** | **1.56x** | 11.54 | 8.78 |
-| `bugs:list_bugs` | 50 | 21.64 | 9.36 | **-56.8%** | **2.31x** | 49.01 | 11.65 |
-| `bugs:load_bug` | 50 | 0.28 | 0.26 | **-6.8%** | **1.07x** | 0.30 | 0.45 |
-| `scope:save_change` | 50 | 11.69 | 8.07 | **-31.0%** | **1.45x** | 19.21 | 10.51 |
-| `scope:next_id` | 50 | 9.54 | 7.03 | **-26.3%** | **1.36x** | 14.34 | 7.38 |
-| `scope:list_changes` | 50 | 16.29 | 8.67 | **-46.8%** | **1.88x** | 22.68 | 9.86 |
-| `scope:load_change` | 50 | 0.20 | 0.12 | **-41.9%** | **1.72x** | 0.29 | 0.14 |
-| `bugs:save_bug` | 100 | 15.10 | 9.26 | **-38.6%** | **1.63x** | 24.51 | 12.17 |
-| `bugs:next_id` | 100 | 11.64 | 2.60 | **-77.7%** | **4.48x** | 13.55 | 3.40 |
-| `bugs:list_bugs` | 100 | 35.68 | 10.21 | **-71.4%** | **3.49x** | 48.27 | 12.19 |
-| `bugs:load_bug` | 100 | 0.31 | 0.10 | **-66.5%** | **2.98x** | 0.37 | 0.13 |
-| `scope:save_change` | 100 | 13.47 | 7.21 | **-46.4%** | **1.87x** | 19.65 | 10.72 |
-| `scope:next_id` | 100 | 5.47 | 1.97 | **-64.0%** | **2.78x** | 7.98 | 2.28 |
-| `scope:list_changes` | 100 | 29.41 | 8.22 | **-72.0%** | **3.58x** | 40.16 | 10.34 |
-| `scope:load_change` | 100 | 0.32 | 0.09 | **-72.4%** | **3.63x** | 0.37 | 0.10 |
+| `workspace:create_job` | 10 | 8.33 | 10.38 | **+24.5%** | **0.80x (slower)** | 9.54 | 257.84 |
+| `workspace:list_jobs` | 10 | 0.94 | 1.32 | **+40.4%** | **0.71x (slower)** | 2.02 | 2.62 |
+| `workspace:get_job_first` | 10 | 0.15 | 0.19 | **+24.0%** | **0.81x (slower)** | 0.17 | 0.23 |
+| `workspace:get_job_mid` | 10 | 0.21 | 0.21 | **-1.9%** | **1.02x** | 0.43 | 0.47 |
+| `workspace:get_job_last` | 10 | 0.19 | 0.20 | **+4.2%** | **0.96x (slower)** | 0.20 | 0.25 |
+| `workspace:get_job_nonexistent` | 10 | 0.13 | 0.12 | **-6.1%** | **1.07x** | 0.14 | 0.14 |
+| `workspace:get_job_dir` | 10 | 0.07 | 0.06 | **-17.6%** | **1.21x** | 0.08 | 0.13 |
+| `workspace:update_job` | 10 | 17.40 | 16.71 | **-4.0%** | **1.04x** | 17.77 | 23.44 |
+| `workspace:archive_job` | 10 | 1.12 | 1.22 | **+8.7%** | **0.92x (slower)** | 1.12 | 1.22 |
+| `workspace:create_job` | 100 | 13.43 | 12.21 | **-9.1%** | **1.10x** | 20.46 | 15.28 |
+| `workspace:list_jobs` | 100 | 15.78 | 15.70 | **-0.5%** | **1.00x** | 16.78 | 17.04 |
+| `workspace:get_job_first` | 100 | 2.40 | 0.58 | **-75.7%** | **4.11x** | 4.23 | 0.75 |
+| `workspace:get_job_mid` | 100 | 2.50 | 1.46 | **-41.4%** | **1.71x** | 3.82 | 2.81 |
+| `workspace:get_job_last` | 100 | 2.59 | 2.29 | **-11.6%** | **1.13x** | 3.37 | 3.67 |
+| `workspace:get_job_nonexistent` | 100 | 2.45 | 2.18 | **-10.9%** | **1.12x** | 3.71 | 3.43 |
+| `workspace:get_job_dir` | 100 | 2.25 | 1.30 | **-41.9%** | **1.72x** | 2.52 | 2.68 |
+| `workspace:update_job` | 100 | 22.03 | 19.13 | **-13.1%** | **1.15x** | 23.73 | 24.91 |
+| `workspace:archive_job` | 100 | 3.43 | 2.72 | **-20.6%** | **1.26x** | 3.43 | 2.72 |
+| `workspace:create_job` | 1000 | 23.23 | 13.55 | **-41.7%** | **1.71x** | 31.76 | 18.46 |
+| `workspace:list_jobs` | 1000 | 127.18 | 127.48 | **+0.2%** | **1.00x (slower)** | 140.82 | 136.79 |
+| `workspace:get_job_first` | 1000 | 2.24 | 0.25 | **-88.9%** | **9.02x** | 3.23 | 0.30 |
+| `workspace:get_job_mid` | 1000 | 4.60 | 1.30 | **-71.8%** | **3.55x** | 5.35 | 1.97 |
+| `workspace:get_job_last` | 1000 | 2.91 | 0.44 | **-85.0%** | **6.67x** | 3.78 | 0.80 |
+| `workspace:get_job_nonexistent` | 1000 | 6.33 | 2.25 | **-64.4%** | **2.81x** | 7.37 | 3.16 |
+| `workspace:get_job_dir` | 1000 | 4.13 | 1.00 | **-75.9%** | **4.15x** | 4.83 | 1.83 |
+| `workspace:update_job` | 1000 | 24.85 | 17.85 | **-28.1%** | **1.39x** | 25.34 | 23.28 |
+| `workspace:archive_job` | 1000 | 3.96 | 1.19 | **-69.8%** | **3.32x** | 3.96 | 1.19 |
+| `timeline:record_event` | 10 | 14.74 | 16.04 | **+8.8%** | **0.92x (slower)** | 20.36 | 31.54 |
+| `timeline:record_event_tail` | 10 | 15.17 | 16.19 | **+6.7%** | **0.94x (slower)** | 23.23 | 20.57 |
+| `timeline:list_events` | 10 | 0.19 | 0.14 | **-25.8%** | **1.35x** | 0.31 | 0.16 |
+| `timeline:record_event` | 100 | 15.61 | 14.84 | **-4.9%** | **1.05x** | 19.77 | 17.72 |
+| `timeline:record_event_tail` | 100 | 15.42 | 15.06 | **-2.3%** | **1.02x** | 17.06 | 16.32 |
+| `timeline:list_events` | 100 | 0.49 | 0.38 | **-22.3%** | **1.29x** | 0.58 | 0.80 |
+| `timeline:record_event` | 1000 | 16.80 | 15.59 | **-7.2%** | **1.08x** | 22.12 | 18.43 |
+| `timeline:record_event_tail` | 1000 | 24.75 | 15.37 | **-37.9%** | **1.61x** | 32.50 | 17.24 |
+| `timeline:list_events` | 1000 | 8.11 | 4.20 | **-48.2%** | **1.93x** | 16.87 | 5.84 |
+| `timer:start_stop_cycle` | 10 | 38.03 | 38.52 | **+1.3%** | **0.99x (slower)** | 47.98 | 60.06 |
+| `timer:start_stop_tail` | 10 | 49.86 | 33.81 | **-32.2%** | **1.47x** | 71.85 | 36.73 |
+| `timer:get_time_log` | 10 | 0.55 | 0.12 | **-78.4%** | **4.64x** | 1.58 | 0.13 |
+| `timer:start_stop_cycle` | 50 | 41.54 | 33.73 | **-18.8%** | **1.23x** | 68.42 | 36.94 |
+| `timer:start_stop_tail` | 50 | 34.32 | 34.80 | **+1.4%** | **0.99x (slower)** | 37.51 | 38.40 |
+| `timer:get_time_log` | 50 | 0.21 | 0.21 | **-1.9%** | **1.02x** | 0.65 | 0.30 |
+| `timer:start_stop_cycle` | 200 | 36.15 | 36.40 | **+0.7%** | **0.99x (slower)** | 42.76 | 49.18 |
+| `timer:start_stop_tail` | 200 | 38.24 | 38.21 | **-0.1%** | **1.00x** | 41.84 | 42.85 |
+| `timer:get_time_log` | 200 | 0.52 | 0.60 | **+17.1%** | **0.85x (slower)** | 0.53 | 0.88 |
+| `work_session:create` | 10 | 3.83 | 4.32 | **+12.6%** | **0.89x (slower)** | 5.11 | 5.64 |
+| `work_session:list` | 10 | 0.75 | 0.86 | **+14.6%** | **0.87x (slower)** | 1.98 | 1.85 |
+| `work_session:find_by_id` | 10 | 0.15 | 0.16 | **+4.0%** | **0.96x (slower)** | 0.21 | 0.20 |
+| `work_session:next_id` | 10 | 0.96 | 0.97 | **+0.7%** | **0.99x (slower)** | 1.25 | 1.53 |
+| `work_session:create` | 50 | 4.42 | 4.34 | **-2.0%** | **1.02x** | 6.57 | 5.71 |
+| `work_session:list` | 50 | 3.42 | 5.73 | **+67.6%** | **0.60x (slower)** | 5.11 | 7.77 |
+| `work_session:find_by_id` | 50 | 0.15 | 0.22 | **+46.3%** | **0.68x (slower)** | 0.16 | 0.35 |
+| `work_session:next_id` | 50 | 1.42 | 1.68 | **+18.3%** | **0.85x (slower)** | 2.53 | 2.39 |
+| `work_session:create` | 150 | 7.45 | 5.54 | **-25.7%** | **1.35x** | 15.82 | 7.60 |
+| `work_session:list` | 150 | 93.26 | 20.29 | **-78.2%** | **4.60x** | 189.53 | 24.09 |
+| `work_session:find_by_id` | 150 | 1.15 | 0.23 | **-80.3%** | **5.07x** | 1.58 | 0.34 |
+| `work_session:next_id` | 150 | 17.09 | 4.25 | **-75.1%** | **4.02x** | 20.79 | 4.78 |
+| `bugs:save_bug` | 10 | 15.94 | 9.07 | **-43.1%** | **1.76x** | 21.31 | 10.17 |
+| `bugs:next_id` | 10 | 3.37 | 1.52 | **-54.9%** | **2.22x** | 9.40 | 2.20 |
+| `bugs:list_bugs` | 10 | 5.84 | 1.06 | **-81.8%** | **5.48x** | 6.56 | 1.29 |
+| `bugs:load_bug` | 10 | 0.54 | 0.10 | **-81.1%** | **5.30x** | 0.66 | 0.25 |
+| `scope:save_change` | 10 | 21.43 | 6.23 | **-70.9%** | **3.44x** | 25.42 | 7.82 |
+| `scope:next_id` | 10 | 6.56 | 1.39 | **-78.9%** | **4.73x** | 7.61 | 2.06 |
+| `scope:list_changes` | 10 | 9.36 | 0.95 | **-89.8%** | **9.83x** | 23.44 | 1.28 |
+| `scope:load_change` | 10 | 0.73 | 0.09 | **-88.2%** | **8.45x** | 0.82 | 0.22 |
+| `bugs:save_bug` | 50 | 19.00 | 8.08 | **-57.5%** | **2.35x** | 33.23 | 9.37 |
+| `bugs:next_id` | 50 | 9.87 | 4.98 | **-49.6%** | **1.98x** | 11.54 | 6.41 |
+| `bugs:list_bugs` | 50 | 21.64 | 9.05 | **-58.2%** | **2.39x** | 49.01 | 11.15 |
+| `bugs:load_bug` | 50 | 0.28 | 0.12 | **-58.4%** | **2.41x** | 0.30 | 0.14 |
+| `scope:save_change` | 50 | 11.69 | 7.42 | **-36.5%** | **1.58x** | 19.21 | 9.33 |
+| `scope:next_id` | 50 | 9.54 | 5.79 | **-39.3%** | **1.65x** | 14.34 | 7.05 |
+| `scope:list_changes` | 50 | 16.29 | 10.29 | **-36.8%** | **1.58x** | 22.68 | 12.37 |
+| `scope:load_change` | 50 | 0.20 | 0.11 | **-43.9%** | **1.78x** | 0.29 | 0.17 |
+| `bugs:save_bug` | 100 | 15.10 | 8.66 | **-42.7%** | **1.74x** | 24.51 | 11.09 |
+| `bugs:next_id` | 100 | 11.64 | 2.14 | **-81.6%** | **5.44x** | 13.55 | 3.03 |
+| `bugs:list_bugs` | 100 | 35.68 | 12.40 | **-65.2%** | **2.88x** | 48.27 | 14.10 |
+| `bugs:load_bug` | 100 | 0.31 | 0.12 | **-62.3%** | **2.65x** | 0.37 | 0.57 |
+| `scope:save_change` | 100 | 13.47 | 7.68 | **-43.0%** | **1.75x** | 19.65 | 8.84 |
+| `scope:next_id` | 100 | 5.47 | 2.20 | **-59.8%** | **2.49x** | 7.98 | 2.94 |
+| `scope:list_changes` | 100 | 29.41 | 11.18 | **-62.0%** | **2.63x** | 40.16 | 13.76 |
+| `scope:load_change` | 100 | 0.32 | 0.11 | **-64.9%** | **2.85x** | 0.37 | 0.15 |
 | `mcp:initialize` | 10_jobs | 0.00 | 0.00 | **-50.0%** | **2.00x** | 0.00 | 0.00 |
-| `mcp:tools/list` | 10_jobs | 0.01 | 0.00 | **-50.0%** | **2.00x** | 0.01 | 0.00 |
-| `mcp:list_jobs` | 10_jobs | 3.85 | 1.61 | **-58.2%** | **2.39x** | 8.78 | 2.68 |
-| `mcp:get_job_status` | 10_jobs | 1.11 | 0.57 | **-48.4%** | **1.94x** | 3.55 | 0.61 |
-| `mcp:get_timeline` | 10_jobs | 1.18 | 0.57 | **-51.7%** | **2.07x** | 2.08 | 0.84 |
-| `mcp:get_work_sessions` | 10_jobs | 1.41 | 0.66 | **-53.2%** | **2.14x** | 3.39 | 0.94 |
-| `mcp:get_profitability` | 10_jobs | 13.01 | 6.32 | **-51.4%** | **2.06x** | 17.48 | 6.91 |
+| `mcp:tools/list` | 10_jobs | 0.01 | 0.00 | **-33.3%** | **1.50x** | 0.01 | 0.00 |
+| `mcp:list_jobs` | 10_jobs | 3.85 | 1.53 | **-60.3%** | **2.52x** | 8.78 | 3.50 |
+| `mcp:get_job_status` | 10_jobs | 1.11 | 0.55 | **-50.9%** | **2.03x** | 3.55 | 1.00 |
+| `mcp:get_timeline` | 10_jobs | 1.18 | 0.56 | **-52.3%** | **2.10x** | 2.08 | 0.92 |
+| `mcp:get_work_sessions` | 10_jobs | 1.41 | 0.70 | **-50.0%** | **2.00x** | 3.39 | 1.13 |
+| `mcp:get_profitability` | 10_jobs | 13.01 | 7.18 | **-44.8%** | **1.81x** | 17.48 | 8.23 |
 | `mcp:initialize` | 100_jobs | 0.00 | 0.00 | **0.0%** | **1.00x** | 0.00 | 0.00 |
-| `mcp:tools/list` | 100_jobs | 0.00 | 0.00 | **0.0%** | **1.00x** | 0.00 | 0.00 |
-| `mcp:list_jobs` | 100_jobs | 21.15 | 20.92 | **-1.1%** | **1.01x** | 25.71 | 23.41 |
-| `mcp:get_job_status` | 100_jobs | 3.93 | 1.07 | **-72.8%** | **3.68x** | 5.12 | 1.42 |
-| `mcp:get_timeline` | 100_jobs | 2.04 | 1.04 | **-48.9%** | **1.96x** | 3.23 | 1.19 |
-| `mcp:get_work_sessions` | 100_jobs | 2.15 | 1.09 | **-49.1%** | **1.97x** | 2.97 | 1.77 |
-| `mcp:get_profitability` | 100_jobs | 12.32 | 6.93 | **-43.7%** | **1.78x** | 18.27 | 8.07 |
-| `archive:export` | small_1MB | 22.74 | 13.80 | **-39.3%** | **1.65x** | 24.00 | 18.13 |
-| `archive:validate` | small_1MB | 3.19 | 1.60 | **-49.7%** | **1.99x** | 4.69 | 1.83 |
-| `archive:import` | small_1MB | 249.85 | 28.23 | **-88.7%** | **8.85x** | 261.49 | 32.05 |
-| `archive:export` | medium_10MB | 44.22 | 42.71 | **-3.4%** | **1.04x** | 47.89 | 46.11 |
-| `archive:validate` | medium_10MB | 3.13 | 3.36 | **+7.4%** | **0.93x (slower)** | 3.80 | 4.30 |
-| `archive:import` | medium_10MB | 312.65 | 63.47 | **-79.7%** | **4.93x** | 319.02 | 64.09 |
-| `archive:export` | large_30MB | 126.21 | 123.27 | **-2.3%** | **1.02x** | 127.56 | 158.13 |
-| `archive:validate` | large_30MB | 9.01 | 8.05 | **-10.6%** | **1.12x** | 9.67 | 8.10 |
-| `archive:import` | large_30MB | 516.63 | 148.38 | **-71.3%** | **3.48x** | 552.75 | 155.15 |
-| `handoff:create_package_full` | 100_files | 77.46 | 51.48 | **-33.5%** | **1.50x** | 102.85 | 52.68 |
-| `handoff:build_release_zip` | 100_files | 58.92 | 38.54 | **-34.6%** | **1.53x** | 65.52 | 46.08 |
-| `handoff:create_package_full` | 500_files | 277.56 | 196.75 | **-29.1%** | **1.41x** | 281.13 | 208.59 |
-| `handoff:build_release_zip` | 500_files | 252.73 | 210.95 | **-16.5%** | **1.20x** | 271.34 | 237.37 |
-| `cli:version` | process_startup | 486.54 | 270.10 | **-44.5%** | **1.80x** | 542.67 | 408.69 |
-| `cli:help` | process_startup | 463.56 | 265.33 | **-42.8%** | **1.75x** | 478.96 | 356.27 |
-| `cli:doctor` | process_startup | 721.23 | 493.86 | **-31.5%** | **1.46x** | 849.82 | 778.72 |
-| `cli:jobs` | process_startup | 463.66 | 232.70 | **-49.8%** | **1.99x** | 472.97 | 259.26 |
-| `cli:importtime_total` | importtime | 364.51 | 140.64 | **-61.4%** | **2.59x** | 364.51 | 140.64 |
+| `mcp:tools/list` | 100_jobs | 0.00 | 0.00 | **0.0%** | **1.00x** | 0.00 | 0.01 |
+| `mcp:list_jobs` | 100_jobs | 21.15 | 18.88 | **-10.7%** | **1.12x** | 25.71 | 20.92 |
+| `mcp:get_job_status` | 100_jobs | 3.93 | 0.99 | **-74.8%** | **3.96x** | 5.12 | 1.21 |
+| `mcp:get_timeline` | 100_jobs | 2.04 | 0.94 | **-53.9%** | **2.17x** | 3.23 | 2.21 |
+| `mcp:get_work_sessions` | 100_jobs | 2.15 | 1.13 | **-47.3%** | **1.90x** | 2.97 | 2.26 |
+| `mcp:get_profitability` | 100_jobs | 12.32 | 7.16 | **-41.9%** | **1.72x** | 18.27 | 8.81 |
+| `archive:export` | small_1MB | 22.74 | 10.11 | **-55.5%** | **2.25x** | 24.00 | 11.24 |
+| `archive:validate` | small_1MB | 3.19 | 1.05 | **-67.0%** | **3.03x** | 4.69 | 1.21 |
+| `archive:import` | small_1MB | 249.85 | 25.72 | **-89.7%** | **9.71x** | 261.49 | 26.25 |
+| `archive:export` | medium_10MB | 44.22 | 48.92 | **+10.6%** | **0.90x (slower)** | 47.89 | 73.94 |
+| `archive:validate` | medium_10MB | 3.13 | 4.80 | **+53.6%** | **0.65x (slower)** | 3.80 | 5.03 |
+| `archive:import` | medium_10MB | 312.65 | 80.93 | **-74.1%** | **3.86x** | 319.02 | 120.70 |
+| `archive:export` | large_30MB | 126.21 | 126.83 | **+0.5%** | **1.00x (slower)** | 127.56 | 129.19 |
+| `archive:validate` | large_30MB | 9.01 | 8.76 | **-2.8%** | **1.03x** | 9.67 | 9.08 |
+| `archive:import` | large_30MB | 516.63 | 147.47 | **-71.5%** | **3.50x** | 552.75 | 154.20 |
+| `handoff:create_package_full` | 100_files | 77.46 | 54.10 | **-30.2%** | **1.43x** | 102.85 | 56.17 |
+| `handoff:build_release_zip` | 100_files | 58.92 | 39.92 | **-32.3%** | **1.48x** | 65.52 | 42.62 |
+| `handoff:create_package_full` | 500_files | 277.56 | 255.91 | **-7.8%** | **1.08x** | 281.13 | 363.56 |
+| `handoff:build_release_zip` | 500_files | 252.73 | 203.09 | **-19.6%** | **1.24x** | 271.34 | 206.81 |
+| `cli:version` | process_startup | 486.54 | 278.94 | **-42.7%** | **1.74x** | 542.67 | 380.57 |
+| `cli:help` | process_startup | 463.56 | 248.31 | **-46.4%** | **1.87x** | 478.96 | 273.36 |
+| `cli:doctor` | process_startup | 721.23 | 538.97 | **-25.3%** | **1.34x** | 849.82 | 643.05 |
+| `cli:jobs` | process_startup | 463.66 | 264.44 | **-43.0%** | **1.75x** | 472.97 | 289.79 |
+| `cli:importtime_total` | importtime | 364.51 | 0.83 | **-99.8%** | **439.17x** | 364.51 | 0.83 |
 
 ### Podsumowanie statystyczne:
-- **Mediana zmiany opóźnień (wszystkie 80 scenariuszy):** **-36.0%**
-- **Maksymalne przyspieszenie punktowe:** **10.19x** (`scope:list_changes` scale=10)
-- **Przyspieszenie importu archiwum (1MB):** **8.85x** (250 ms -> 28 ms)
-- **Przyspieszenie importu archiwum (10MB):** **4.93x** (313 ms -> 63 ms)
-- **Przyspieszenie importu archiwum (30MB):** **3.48x** (517 ms -> 148 ms)
-- **Przyspieszenie wyszukiwania joba w dużym workspace (1000 jobów):** **9.61x** (2.24 ms -> 0.23 ms)
-- **Przyspieszenie startu CLI (import time):** **2.59x** (364.5 ms -> 140.6 ms)
-
----
+- **Mediana zmiany opóźnień (wszystkie 113 scenariuszy):** **-37.9%**
+- **Maksymalne przyspieszenie punktowe:** **439.17x**
 
 ## 3. Profiling Breakdown: Gdzie faktycznie idzie czas?
 
@@ -239,6 +232,19 @@ Na podstawie profilowania `cProfile` i analizy liczby wywołań systemowych na p
 | **3. Kompresja i pakowanie archiwów / handoffów (tar.gz, zip)** | **Wysoki (3x - 6x)** dla gigabajtowych archiwów (>100 MB, >10 000 plików). | **Średni:** `flate2` / `zstd` w Rust oferuje wielowątkową kompresję (pigz-style), czego standardowy jednowątkowy `tarfile`/`gzip` w Pythonie nie potrafi bez multiprocessing. | **Bardzo niski:** Wejście to ścieżka na dysku, wyjście to plik archiwum. Brak marshalingu obiektów przez FFI, GIL można całkowicie zwolnić (`py.allow_threads`). | **MOŻE W PRZYSZŁOŚCI (dla ogromnych projektów)** |
 | **4. Szybkie parsowanie JSON / JSONL** | **Średni (1.5x - 2x)** | **Niski/Średni:** integracja z `serde_json` / `simd-json`. | **Wysoki:** Zamiana sparsowanego w Rust JSON-a na natywne obiekty `PyDict` i `PyList` w pamięci Pythona zajmuje do 70% czasu operacji. `simd-json` wygrywa tylko wtedy, gdy dane pozostają po stronie Rusta. | **NIE WARTO** (standardowy `json` po optymalizacji backwards-seek jest w pełni wystarczający) |
 | **5. Masowe operacje analityczne (batch stats, timeline audit)** | **Wysoki (4x - 10x)** przy analityce milionów rekordów czasowych i logów. | **Wysoki:** przeniesienie modeli kalkulacji stawek, marży i ryzyka do Rust. | **Niski:** wejście: surowe pliki, wyjście: gotowy obiekt podsumowania. | **NIE WARTO** (freelancer nie zarządza milionami rekordów rocznie; dla typowych 50-200 jobów Python wykonuje to w <5 ms). |
+
+### Szczegółowa tabela kandydatów na moduły Rust (zgodnie z wymogami analizy)
+
+| Candidate | Current time | CPU-bound? | Native implementation already? | Potential Rust gain | Complexity |
+|---|---:|---|---|---|---|
+| **Filesystem scanning** (`scandir`/`list_jobs`) | 0.23 - 12 ms | Częściowo (stat/path parsing) | Tak (C `nt._scandir`) | Niski (1.2x - 1.5x, FFI overhead) | Wysoka (OS-specific paths, wheels) |
+| **Archive compression** (`tar.gz`/`zip`) | 14 - 125 ms | Tak (kompresja strumienia) | Tak (C `zlib`/`gzip`) | Średni/Wysoki (2x - 4x dla >100MB via multithread) | Średnia |
+| **SHA-256 verification** | 1.6 - 8.0 ms | Tak | Tak (C/asm OpenSSL via `_hashlib`) | Zerowy (0% - brak zysku nad OpenSSL) | Niska/Średnia |
+| **JSON / JSONL parsing** | 0.1 - 3.2 ms | Częściowo | Tak (C `_json`) | Niski (FFI PyObject conversion dominuje) | Średnia |
+| **Analytics & Stats** (marża, zysk) | 0.5 - 6.9 ms | Tak | Nie (Pure Python dataclass) | Pomijalny w skali bezwzględnej (<2 ms) | Średnia |
+| **Timeline append** (`record_event`) | ~15 ms | Nie (I/O & fsync-bound) | Częściowo (`_io`) | Zerowy (I/O `FlushFileBuffers` dominuje) | Średnia |
+| **MCP Server latency** | 0.5 - 1.6 ms | Nie (I/O & JSON) | Częściowo | Pomijalny (<0.5 ms zysku) | Wysoka (protokół stdio/async) |
+| **CLI startup time** | ~230 - 270 ms | Częściowo (interpreter load) | CPython | Zerowy (narzut startu Pythona pozostaje) | Bardzo wysoka |
 
 ---
 
