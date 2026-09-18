@@ -26,6 +26,24 @@ def job_dir_name(job: Job) -> str:
     return f"{job.id}-{slug}"
 
 
+STANDARD_JOB_SUBDIRS = (
+    "client",
+    "analysis",
+    "work",
+    "work/bugs",
+    "work/scope",
+    "handoff",
+)
+
+
+def _ensure_job_subdirs(job_dir: Path) -> None:
+    """Ensure all standard job subdirectories exist (self-healing for legacy/imported jobs)."""
+    for subdir in STANDARD_JOB_SUBDIRS:
+        subpath = job_dir / subdir
+        if not subpath.exists():
+            subpath.mkdir(parents=True, exist_ok=True)
+
+
 def save_job(job: Job, workspace_root: Path, job_dir: Path | None = None) -> Path:
     """Save a job to its workspace directory. Returns the job directory path."""
     # Preserve the current lifecycle location. Re-saving a job found under
@@ -36,13 +54,13 @@ def save_job(job: Job, workspace_root: Path, job_dir: Path | None = None) -> Pat
     if is_new:
         job_dir = workspace_root / "active" / job_dir_name(job)
         job_dir.mkdir(parents=True, exist_ok=True)
-        # Create standard subdirectories only on initial job creation
-        for subdir in ["client", "analysis", "work", "work/bugs", "work/scope", "handoff"]:
-            (job_dir / subdir).mkdir(parents=True, exist_ok=True)
     else:
         assert job_dir is not None
         if not job_dir.exists():
             job_dir.mkdir(parents=True, exist_ok=True)
+
+    # Self-healing: ensure standard subdirectories exist without redundant mkdir calls
+    _ensure_job_subdirs(job_dir)
 
     # Write job metadata
     job_path = job_dir / "job.json"

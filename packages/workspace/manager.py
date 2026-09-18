@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import re
 from pathlib import Path
 
 from freelance_cli.config import Config, load_config, save_config
@@ -20,6 +19,27 @@ from packages.workspace.storage import (
 )
 
 
+def _scan_highest_job_id(workspace_path: Path) -> int:
+    """Find the highest existing numeric job suffix across active/ and finished/ directories."""
+    highest = 0
+    for parent_dir_name in ("active", "finished"):
+        parent_dir = workspace_path / parent_dir_name
+        if not parent_dir.exists():
+            continue
+        try:
+            with os.scandir(parent_dir) as entries:
+                for entry in entries:
+                    if entry.is_dir() and entry.name.startswith("JOB-"):
+                        num_part = entry.name[4:].split("-", 1)[0]
+                        if num_part.isdigit():
+                            val = int(num_part)
+                            if val > highest:
+                                highest = val
+        except OSError:
+            pass
+    return highest
+
+
 class WorkspaceManager:
     """Manages the freelance workspace: creating, listing, and updating jobs."""
 
@@ -30,6 +50,7 @@ class WorkspaceManager:
         # ~/.freelance/config.yaml would be an unexpected global side effect.
         self._persist_config = config is None or config_path is not None
         self.config = config or load_config(config_path)
+        self._high_watermark: int | None = None
         self._ensure_workspace()
 
     def _ensure_workspace(self) -> None:
@@ -54,30 +75,30 @@ class WorkspaceManager:
             if self.config_path and self.config_path.exists():
                 self.config = load_config(self.config_path)
 
-            candidate = self.config.job_counter + 1
+            # Lazy synchronization on first job creation or if external config increased counter
+            if self._high_watermark is None:
+                self._high_watermark = max(
+                    self.config.job_counter,
+                    _scan_highest_job_id(self.config.workspace_path),
+                )
+            elif self.config.job_counter > self._high_watermark:
+                self._high_watermark = self.config.job_counter
+
+            candidate = self._high_watermark + 1
             candidate_id = f"JOB-{candidate:03d}"
             conflict_dir = find_job_dir(candidate_id, self.config.workspace_path)
-            if conflict_dir is None:
-                self.config.job_counter = candidate
-                job_id = candidate_id
-            else:
-                highest = self.config.job_counter
-                for parent_dir in (
-                    self.config.workspace_path / "active",
-                    self.config.workspace_path / "finished",
-                ):
-                    if parent_dir.exists():
-                        try:
-                            with os.scandir(parent_dir) as entries:
-                                for p in entries:
-                                    if p.is_dir():
-                                        match = re.match(r"^JOB-(\d+)", p.name)
-                                        if match:
-                                            highest = max(highest, int(match.group(1)))
-                        except OSError:
-                            pass
-                self.config.job_counter = highest + 1
-                job_id = f"JOB-{self.config.job_counter:03d}"
+            if conflict_dir is not None:
+                # Unexpected external modification / unmanifested directory
+                self._high_watermark = max(
+                    candidate,
+                    _scan_highest_job_id(self.config.workspace_path),
+                )
+                candidate = self._high_watermark + 1
+                candidate_id = f"JOB-{candidate:03d}"
+
+            self._high_watermark = candidate
+            self.config.job_counter = candidate
+            job_id = candidate_id
 
             job = Job(
                 id=job_id,
