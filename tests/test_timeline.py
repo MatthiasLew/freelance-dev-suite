@@ -86,4 +86,3 @@ def test_timeline_sequential_and_fallback(tmp_path: Path) -> None:
 
     next_evt = timeline.record_event(job_dir, "JOB-002", "after_corrupted")
     assert next_evt.event_id == "EVT-0026"
-

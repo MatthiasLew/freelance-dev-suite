@@ -11,8 +11,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from filelock import FileLock
-
 CURRENT_STATE_SCHEMA_VERSION = "1.0"
 
 
@@ -156,6 +154,8 @@ def storage_lock(path: Path, timeout: float = 15.0) -> Iterator[None]:
             if held[canonical] <= 0:
                 held.pop(canonical, None)
         return
+
+    from filelock import FileLock
 
     with FileLock(canonical, timeout=timeout):
         held[canonical] = 1

@@ -8,20 +8,18 @@ Supports baseline recording, post-optimization benchmarking, and comparison.
 from __future__ import annotations
 
 import argparse
-import io
 import json
-import os
 import platform
-import shutil
 import statistics
 import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 
 @dataclass
