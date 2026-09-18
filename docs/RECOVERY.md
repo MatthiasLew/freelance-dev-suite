@@ -54,6 +54,8 @@ If a power cut or disk glitch corrupts a state file (triggering `CorruptedStateE
    ```bash
    freelance import ~/.freelance/backups/JOB-001-20260916.tar.gz --replace
    ```
+4. **Timeline Event Log (`events.jsonl`) Self-Healing**:
+   If an unexpected termination interrupts appending to `events.jsonl`, subsequent writes automatically detect truncated or malformed trailing records via the $O(N)$ safety fallback, recover the highest valid sequence number (`max_seen`), and resume sequential event logging without duplicate IDs.
 
 ---
 

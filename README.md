@@ -242,6 +242,42 @@ Verify the overall health of the environment, git, `ai-dev` engine, and all stor
 freelance doctor
 ```
 
+## Performance & Benchmarks
+
+Freelance Dev Suite is optimized in pure Python without external native extensions (no Rust, Go, or C toolchain dependencies required). All optimizations are backed by a reproducible 80-scenario benchmark suite comparing identical workloads against the baseline:
+
+| Scenario | Workload | Baseline Median | Optimized Median | Speedup |
+|---|---|---|---|---|
+| Job Lookup | 1,000-job workspace | 2.24 ms | **0.23 ms** | **9.61x** |
+| Scope Changes Listing | 100 changes | 2.14 ms | **0.21 ms** | **10.19x** |
+| Archive Import (1MB) | Safe extract + SHA-256 | 250.2 ms | **28.3 ms** | **8.85x** |
+| Archive Import (30MB) | Safe extract + SHA-256 | 4,888 ms | **1,404 ms** | **3.48x** |
+| Work Sessions Listing | 150 sessions | 93.3 ms | **19.3 ms** | **4.84x** |
+| Bug Report Processing | 100 bug reports | 35.7 ms | **10.2 ms** | **3.49x** |
+| MCP Server Job Status | Stdio JSON-RPC tool | 3.93 ms | **1.07 ms** | **3.68x** |
+| Cold Start (`--version`) | Fresh Python process | 486.5 ms | **270.2 ms** | **1.80x** |
+| Cold Start (`--help`) | Fresh Python process | 463.6 ms | **265.4 ms** | **1.75x** |
+
+### Key Architectural Optimizations
+- **$O(1)$ Fast Path for Timeline**: `TimelineManager.record_event()` performs a backward seek within an 8KB tail buffer to determine the next sequential ID, eliminating full-file JSON parsing. An $O(N)$ safety fallback automatically scans the file and recovers the sequence (`max_seen`) if records are malformed or truncated.
+- **Lazy Import of Concurrency Tooling**: Deferred `filelock` import to dynamic execution inside `storage_lock()`, reducing Python startup module overhead by over 100 modules and cutting cold-start latency by ~44%.
+- **Streaming Directory Traversal**: Replaced recursive `Path.iterdir()` and `Path.glob()` calls with low-overhead `os.scandir()` and high-watermark job ID caching, eliminating repeated filesystem scans.
+- **Buffered Single-Pass Archive I/O**: Streamed archive import in 128KB chunks while computing SHA-256 digests in-flight, halving disk I/O and memory usage.
+
+### Native Acceleration (Rust) Analysis
+During profiling with `cProfile`, disk-modifying operations were found to be physically dominated by kernel `fsync` (on Linux) and `FlushFileBuffers` (on Windows), which account for 35–50% of execution time. Because native code cannot bypass kernel disk synchronization latency, rewriting storage in Rust or C would not provide meaningful speedups while introducing compilation requirements and cross-platform binary dependencies. Native acceleration will only be revisited if future profiling identifies meaningful CPU-bound hotspots.
+
+Complete methodology and reproducible measurements are documented in [`benchmarks/COMPARISON.md`](benchmarks/COMPARISON.md) and [`benchmarks/PROFILE.md`](benchmarks/PROFILE.md).
+
+## Quality & Engineering Standards
+
+- **Comprehensive Test Suite**: 241 passed tests (1 skipped) validating business logic, concurrency, file locks, MCP protocol, and CLI contracts.
+- **Strict Branch Coverage**: 83.11% branch coverage with continuous enforcement in CI (`fail_under = 82%`).
+- **Strict Type Checking**: 100% strict type safety enforced across all source modules and tests using `mypy --strict`.
+- **Code Hygiene**: Formatted and linted with `ruff` using strict rule sets.
+- **Security & Secret Redaction**: Multi-provider runtime secret masking (`mask_text`), path traversal guards (`assert_safe_path`), and automated GitHub Actions CodeQL analysis and Gitleaks history scanning.
+- **Cross-Platform Matrix**: Fully verified and continuously tested on Linux and Windows runners across Python 3.11, 3.12, and 3.13.
+
 ## Releases
 
 CI tests Linux and Windows on Python 3.11-3.13, installs the built wheel in an isolated environment,

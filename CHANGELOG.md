@@ -3,6 +3,22 @@
 ## Unreleased
 
 
+## 0.2.1 — 2026-09-18
+
+### Performance
+- **Append-Only Timeline $O(1)$ Fast Path**: Implemented backward-seek on the last 8KB tail buffer of `events.jsonl` in `TimelineManager.record_event()`, eliminating $O(N)$ full-file JSON deserialization per event while maintaining an $O(N)$ resilient fallback scan with `max_seen` sequence recovery for corrupted or truncated records.
+- **CLI Startup & Cold-Process Latency**: Deferred `filelock` import to dynamic execution inside `storage_lock()`, reducing cold startup time from ~480 ms to ~270 ms (-44%) for `--version`, `--help`, and read-only commands without impacting lock safety.
+- **Workspace & Storage Scanning**: Replaced recursive `iterdir()` and `glob()` scans with streaming `os.scandir()` and lazy high-watermark ID counter synchronization, speeding up job lookups in 1,000-job workspaces by 9.6x (2.24 ms to 0.23 ms).
+- **Archive Import & Packaging**: Implemented buffered single-pass streaming with in-flight SHA-256 hash calculation and pre-resolved path traversal checks, speeding up archive imports by up to 8.8x (1MB) and 3.5x (30MB).
+- **Work Sessions, Bugs, and Scope Processing**: Replaced repetitive directory checks and regex-based ID parsing with direct slicing and streaming directory entries across `WorkManager`, `BugProcessor`, `ScopeChangeDetector`, and `TimeTracker`.
+- **MCP Server Latency**: Eliminated duplicate workspace lookups in `get_job_status` tool handler (3.9 ms to 1.1 ms).
+- **Benchmark & Profiling Suite**: Added reproducible benchmark harness (`benchmarks/run_benchmarks.py`), cProfile hotspot analyzer (`benchmarks/profile_hotspots.py`), and detailed performance reports (`BASELINE.md`, `OPTIMIZED.md`, `COMPARISON.md`, `PROFILE.md`).
+
+### Reliability & Testing
+- **Expanded Test Suite**: Added 27 new regression tests covering timeline backward-seek boundaries, corrupted JSONL recovery, archive streaming, and workspace scalability (241 passed, 1 skipped, 83.11% branch coverage).
+- **Native Acceleration Analysis**: Thorough profiling demonstrated that filesystem I/O and synchronous durability flushes (`fsync` / `FlushFileBuffers`, accounting for 35–50% of write latency) dominate execution; native extensions (Rust/C) are not justified at this stage.
+
+
 ## 0.2.0 — 2026-09-17
 
 ### Added

@@ -102,12 +102,16 @@ Multiple CLI commands, background tasks, or AI editor extensions may access the 
 1. **Cross-Process File Locking (`storage_lock`)**:
    - Implemented in `packages/storage_utils.py` using `filelock.FileLock`.
    - Protects read-modify-write operations on state files (`.job.lock`, `.work.lock`, `.timeline.lock`).
+   - `FileLock` is imported lazily on first acquisition, ensuring read-only CLI commands (`--version`, `--help`, `jobs`) start up without the module loading overhead of asyncio/multithreading subsystems.
 2. **Thread-Local Re-Entrancy**:
    - Windows and certain Unix locking semantics can deadlock if the same OS thread attempts to re-acquire an already held lock (for example, `WorkManager.finish()` calling `next_work_id()` or recording a timeline event).
    - Thread-local tracking (`_active_locks.held`) bypasses nested lock requests within the same thread while keeping cross-process and cross-thread exclusion intact.
 3. **Atomic File Writes (`atomic_write_json`, `atomic_write_text`)**:
    - Files are written to a temporary sibling (`<filename>.<pid>.<uuid>.tmp`) and flushed to disk before an atomic `os.replace` operation.
    - Prevents partially written or zero-byte corrupted files if a process is killed mid-write.
+4. **Append-Only Timeline Optimization**:
+   - Chronological event logs (`events.jsonl`) utilize an $O(1)$ fast path that seeks backward within the final 8KB tail buffer to determine the next sequential ID, avoiding full-file parsing.
+   - An $O(N)$ recovery fallback scans the file and recovers the sequence (`max_seen`) if records are truncated or corrupted.
 
 ---
 

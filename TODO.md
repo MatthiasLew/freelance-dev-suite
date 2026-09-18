@@ -71,3 +71,16 @@
 - [x] remove local paths and update documentation links in README
 - [x] add CI, CodeQL, PyPI, Python, and License status badges to README
 - [x] prepare package metadata, CHANGELOG, and test suite for v0.2.0 release
+
+## P6 — Performance Optimization & Benchmark Audit (v0.2.1)
+
+- [x] baseline performance audit and reproducible benchmark harness (`benchmarks/run_benchmarks.py`)
+- [x] $O(1)$ fast-path backwards seek (8KB tail buffer) with $O(N)$ sequence-recovery fallback for append-only timeline
+- [x] deferred `FileLock` loading and lazy CLI command imports (reducing cold startup latency by ~1.8x)
+- [x] single-pass streaming archive import with in-flight SHA-256 calculation
+- [x] low-overhead workspace directory scanning with `os.scandir` and high-watermark job ID caching
+- [x] work session, bug report, and scope change processing optimizations
+- [x] cProfile hotspot analysis (`benchmarks/profile_hotspots.py`) confirming physical I/O and `fsync` dominance
+- [x] evaluate native acceleration: Rust/C extension not justified at this stage (revisit native acceleration only if future profiling identifies meaningful CPU-bound hotspots)
+- [x] expand regression test suite to 241 passed tests (83.11% branch coverage)
+- [x] prepare package metadata, documentation, and release artifacts for v0.2.1

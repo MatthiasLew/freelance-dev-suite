@@ -15,9 +15,11 @@ from packages.intake.analyzer import IntakeResult
 
 class TestCLI:
     def test_version(self, cli_runner: CliRunner) -> None:
+        from freelance_cli import __version__
+
         result = cli_runner.invoke(main, ["--version"])
         assert result.exit_code == 0
-        assert "0.2.0" in result.output
+        assert __version__ in result.output
 
     def test_help(self, cli_runner: CliRunner) -> None:
         result = cli_runner.invoke(main, ["--help"])
