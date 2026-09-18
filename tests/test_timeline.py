@@ -67,3 +67,23 @@ def test_history_not_found(cli_runner: CliRunner) -> None:
     res = cli_runner.invoke(main, ["history", "JOB-999"])
     assert res.exit_code != 0
     assert "not found" in res.output.lower()
+
+
+def test_timeline_sequential_and_fallback(tmp_path: Path) -> None:
+    job_dir = tmp_path / "active" / "JOB-002"
+    job_dir.mkdir(parents=True, exist_ok=True)
+    timeline = TimelineManager()
+
+    # Append 25 events and verify IDs are strictly sequential
+    for i in range(1, 26):
+        evt = timeline.record_event(job_dir, "JOB-002", f"evt_{i}")
+        assert evt.event_id == f"EVT-{i:04d}"
+
+    # Verify fallback if trailing line is malformed
+    hfile = timeline.history_file(job_dir)
+    with open(hfile, "a", encoding="utf-8") as f:
+        f.write("corrupted-non-json-line\n")
+
+    next_evt = timeline.record_event(job_dir, "JOB-002", "after_corrupted")
+    assert next_evt.event_id == "EVT-0026"
+

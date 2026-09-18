@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -40,6 +41,53 @@ class BusinessEvent:
         )
 
 
+_EVT_ID_PATTERN = re.compile(r"^EVT-(\d+)$")
+
+
+def _get_last_event_number(history_path: Path) -> int:
+    if not history_path.exists():
+        return 0
+    try:
+        size = history_path.stat().st_size
+        if size == 0:
+            return 0
+        read_size = min(size, 4096)
+        with open(history_path, "rb") as f:
+            f.seek(size - read_size)
+            chunk = f.read(read_size)
+        lines = chunk.decode("utf-8", errors="replace").splitlines()
+        for line in reversed(lines):
+            line_clean = line.strip()
+            if line_clean:
+                try:
+                    data = json.loads(line_clean)
+                    if isinstance(data, dict) and "event_id" in data:
+                        m = _EVT_ID_PATTERN.match(str(data["event_id"]))
+                        if m:
+                            return int(m.group(1))
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        # Fallback if 4KB chunk did not have full event: scan lines
+        with open(history_path, encoding="utf-8") as f:
+            count = 0
+            last_valid = 0
+            for line in f:
+                line_clean = line.strip()
+                if line_clean:
+                    count += 1
+                    try:
+                        data = json.loads(line_clean)
+                        if isinstance(data, dict) and "event_id" in data:
+                            m = _EVT_ID_PATTERN.match(str(data["event_id"]))
+                            if m:
+                                last_valid = max(last_valid, int(m.group(1)))
+                    except Exception:
+                        pass
+            return max(last_valid, count)
+    except OSError:
+        return 0
+
+
 class TimelineManager:
     """Manages append-only JSONL event history for jobs."""
 
@@ -61,8 +109,8 @@ class TimelineManager:
         lock_path = history_path.parent / ".timeline.lock"
 
         with storage_lock(lock_path):
-            existing = self.list_events(job_dir)
-            event_id = f"EVT-{len(existing) + 1:04d}"
+            next_num = _get_last_event_number(history_path) + 1
+            event_id = f"EVT-{next_num:04d}"
             event = BusinessEvent(
                 event_id=event_id,
                 job_id=job_id,
