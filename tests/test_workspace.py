@@ -179,6 +179,17 @@ class TestStorage:
         found_dir = find_job_dir("JOB-001", tmp_workspace)
         assert found_dir == saved_dir
 
+    def test_find_job_entry(self, sample_job: Job, tmp_workspace: Path) -> None:
+        from packages.workspace.storage import find_job_entry
+
+        saved_dir = save_job(sample_job, tmp_workspace)
+        entry = find_job_entry("JOB-001", tmp_workspace)
+        assert entry is not None
+        job, path = entry
+        assert job.id == "JOB-001"
+        assert path == saved_dir
+        assert find_job_entry("JOB-999", tmp_workspace) is None
+
 
 # ──────────────────── Manager tests ─────────────────────────────────
 

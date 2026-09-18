@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from packages.workspace.storage import (
     find_all_jobs,
     find_job_by_id,
     find_job_dir,
+    find_job_entry,
     save_job,
 )
 
@@ -52,19 +54,31 @@ class WorkspaceManager:
             if self.config_path and self.config_path.exists():
                 self.config = load_config(self.config_path)
 
-            highest = self.config.job_counter
-            for parent_dir in (
-                self.config.workspace_path / "active",
-                self.config.workspace_path / "finished",
-            ):
-                if parent_dir.exists():
-                    for p in parent_dir.iterdir():
-                        match = re.match(r"^JOB-(\d+)", p.name)
-                        if match:
-                            highest = max(highest, int(match.group(1)))
+            candidate = self.config.job_counter + 1
+            candidate_id = f"JOB-{candidate:03d}"
+            conflict_dir = find_job_dir(candidate_id, self.config.workspace_path)
+            if conflict_dir is None:
+                self.config.job_counter = candidate
+                job_id = candidate_id
+            else:
+                highest = self.config.job_counter
+                for parent_dir in (
+                    self.config.workspace_path / "active",
+                    self.config.workspace_path / "finished",
+                ):
+                    if parent_dir.exists():
+                        try:
+                            with os.scandir(parent_dir) as entries:
+                                for p in entries:
+                                    if p.is_dir():
+                                        match = re.match(r"^JOB-(\d+)", p.name)
+                                        if match:
+                                            highest = max(highest, int(match.group(1)))
+                        except OSError:
+                            pass
+                self.config.job_counter = highest + 1
+                job_id = f"JOB-{self.config.job_counter:03d}"
 
-            self.config.job_counter = highest + 1
-            job_id = f"JOB-{self.config.job_counter:03d}"
             job = Job(
                 id=job_id,
                 client=client,
@@ -76,15 +90,13 @@ class WorkspaceManager:
                 repository=repository,
                 notes=notes,
             )
-            save_job(job, self.config.workspace_path)
-            job_dir = self.get_job_dir(job_id)
-            if job_dir:
-                TimelineManager().record_event(
-                    job_dir,
-                    job_id,
-                    "job_created",
-                    metadata={"client": client, "source": source},
-                )
+            job_dir = save_job(job, self.config.workspace_path)
+            TimelineManager().record_event(
+                job_dir,
+                job_id,
+                "job_created",
+                metadata={"client": client, "source": source},
+            )
             if self._persist_config:
                 save_config(self.config, self.config_path)
         return job
@@ -103,11 +115,12 @@ class WorkspaceManager:
 
     def update_job_status(self, job_id: str, new_status: str, note: str = "") -> Job | None:
         """Update a job's status."""
-        job = find_job_by_id(job_id, self.config.workspace_path)
-        if job is None:
+        entry = find_job_entry(job_id, self.config.workspace_path)
+        if entry is None:
             return None
+        job, job_dir = entry
         job.change_status(new_status, note)
-        save_job(job, self.config.workspace_path)
+        save_job(job, self.config.workspace_path, job_dir=job_dir)
         return job
 
     def get_job_dir(self, job_id: str) -> Path | None:
