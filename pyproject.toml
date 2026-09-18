@@ -82,6 +82,7 @@ testpaths = ["tests"]
 pythonpath = ["src", "."]
 
 addopts = "-q -p no:pytest-qt"
+tmp_path_retention_policy = "failed"
 
 [tool.coverage.run]
 branch = true

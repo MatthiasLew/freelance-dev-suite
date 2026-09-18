@@ -127,6 +127,8 @@ def safe_read_json(
     return data
 
 
+_process_locks: dict[str, threading.RLock] = {}
+_process_locks_guard = threading.Lock()
 _active_locks: threading.local = threading.local()
 
 
@@ -136,6 +138,13 @@ def _get_active_locks() -> dict[str, int]:
     return _active_locks.held  # type: ignore[no-any-return]
 
 
+def _get_process_lock(canonical: str) -> threading.RLock:
+    with _process_locks_guard:
+        if canonical not in _process_locks:
+            _process_locks[canonical] = threading.RLock()
+        return _process_locks[canonical]
+
+
 @contextmanager
 def storage_lock(path: Path, timeout: float = 15.0) -> Iterator[None]:
     """Serialize a read-modify-write transaction across processes (re-entrant in same thread)."""
@@ -143,25 +152,27 @@ def storage_lock(path: Path, timeout: float = 15.0) -> Iterator[None]:
 
     path.parent.mkdir(parents=True, exist_ok=True)
     canonical = os.path.normcase(os.path.normpath(str(canonicalize_path(path))))
-    held = _get_active_locks()
+    proc_lock = _get_process_lock(canonical)
 
-    if held.get(canonical, 0) > 0:
-        held[canonical] += 1
-        try:
-            yield
-        finally:
-            held[canonical] -= 1
-            if held[canonical] <= 0:
-                held.pop(canonical, None)
-        return
+    with proc_lock:
+        held = _get_active_locks()
+        if held.get(canonical, 0) > 0:
+            held[canonical] += 1
+            try:
+                yield
+            finally:
+                held[canonical] -= 1
+                if held[canonical] <= 0:
+                    held.pop(canonical, None)
+            return
 
-    from filelock import FileLock
+        from filelock import FileLock
 
-    with FileLock(canonical, timeout=timeout):
-        held[canonical] = 1
-        try:
-            yield
-        finally:
-            held[canonical] -= 1
-            if held[canonical] <= 0:
-                held.pop(canonical, None)
+        with FileLock(canonical, timeout=timeout):
+            held[canonical] = 1
+            try:
+                yield
+            finally:
+                held[canonical] -= 1
+                if held[canonical] <= 0:
+                    held.pop(canonical, None)

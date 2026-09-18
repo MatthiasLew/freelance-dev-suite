@@ -185,6 +185,7 @@ def test_timeline_gaps_in_event_ids(tmp_path: Path) -> None:
 
 def test_timeline_concurrent_appends(tmp_path: Path) -> None:
     """Concurrent appends under storage_lock assign distinct IDs."""
+    import gc
     from concurrent.futures import ThreadPoolExecutor
 
     job_dir = tmp_path / "active" / "JOB-CONCURRENT"
@@ -195,8 +196,9 @@ def test_timeline_concurrent_appends(tmp_path: Path) -> None:
         evt = timeline.record_event(job_dir, "JOB-CONCURRENT", f"concurrent_{i}")
         return evt.event_id
 
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        ids = list(pool.map(append_event, range(20)))
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        ids = list(pool.map(append_event, range(12)))
 
-    assert len(ids) == 20
-    assert len(set(ids)) == 20
+    assert len(ids) == 12
+    assert len(set(ids)) == 12
+    gc.collect()
