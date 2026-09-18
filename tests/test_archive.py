@@ -231,3 +231,86 @@ def test_export_and_import_cli(cli_runner: CliRunner, tmp_path: Path) -> None:
     assert res_imp.exit_code == 0
     imp_payload = json.loads(res_imp.output)
     assert imp_payload["job"]["id"] == "JOB-001"
+
+
+def test_import_windows_drive_path_rejected(tmp_path: Path) -> None:
+    """An archive containing Windows absolute drive path (e.g. C:file) must be rejected."""
+    evil_tar = tmp_path / "win_drive.tar.gz"
+    with tarfile.open(evil_tar, "w:gz") as tar:
+        payload = b"evil"
+        ti = tarfile.TarInfo(name="C:/Windows/System32/evil.dll")
+        ti.size = len(payload)
+        tar.addfile(ti, io.BytesIO(payload))
+
+        manifest = {"job_id": "JOB-001", "checksums": {}}
+        m_bytes = json.dumps(manifest).encode("utf-8")
+        m_ti = tarfile.TarInfo(name="manifest.json")
+        m_ti.size = len(m_bytes)
+        tar.addfile(m_ti, io.BytesIO(m_bytes))
+
+    archiver = ArchiveManager()
+    with pytest.raises(ValueError) as exc_info:
+        archiver.validate_archive(evil_tar)
+    err = str(exc_info.value).lower()
+    assert "absolute drive path" in err or "traversal" in err
+
+
+def test_import_non_regular_file_rejected(tmp_path: Path) -> None:
+    """Non-regular file entries (FIFOs, devices) must be rejected."""
+    fifo_tar = tmp_path / "fifo.tar.gz"
+    with tarfile.open(fifo_tar, "w:gz") as tar:
+        ti = tarfile.TarInfo(name="data/pipe")
+        ti.type = tarfile.FIFOTYPE
+        tar.addfile(ti)
+
+        manifest = {"job_id": "JOB-001", "checksums": {}}
+        m_bytes = json.dumps(manifest).encode("utf-8")
+        m_ti = tarfile.TarInfo(name="manifest.json")
+        m_ti.size = len(m_bytes)
+        tar.addfile(m_ti, io.BytesIO(m_bytes))
+
+    archiver = ArchiveManager()
+    with pytest.raises(ValueError) as exc_info:
+        archiver.validate_archive(fifo_tar)
+    assert "non-regular file" in str(exc_info.value).lower()
+
+
+def test_import_cleanup_staging_dir_on_error(tmp_path: Path) -> None:
+    """If import fails midway (e.g. bad checksum), the staging directory is cleaned up."""
+    workspace = tmp_path / "workspace"
+    job_dir = workspace / "active" / "JOB-CLEANUP-test"
+    job_dir.mkdir(parents=True, exist_ok=True)
+
+    job = Job(id="JOB-CLEANUP", client="CleanupCo", description="Cleanup test")
+    atomic_write_json(job_dir / "job.json", job.to_dict())
+
+    archiver = ArchiveManager()
+    archive_path = archiver.export_job(job, job_dir)
+
+    # Tamper with archive
+    tampered_tar = tmp_path / "tampered_cleanup.tar.gz"
+    with (
+        tarfile.open(archive_path, "r:gz") as src_tar,
+        tarfile.open(tampered_tar, "w:gz") as dst_tar,
+    ):
+        for member in src_tar.getmembers():
+            f = src_tar.extractfile(member)
+            if member.name == "manifest.json" and f is not None:
+                manifest_data = json.loads(f.read().decode("utf-8"))
+                manifest_data["checksums"]["job.json"] = "badhash"
+                new_bytes = json.dumps(manifest_data).encode("utf-8")
+                tarinfo = tarfile.TarInfo(name="manifest.json")
+                tarinfo.size = len(new_bytes)
+                dst_tar.addfile(tarinfo, io.BytesIO(new_bytes))
+            elif f is not None:
+                dst_tar.addfile(member, f)
+
+    target_ws = tmp_path / "target_ws"
+    target_ws.mkdir()
+    with pytest.raises(CorruptedStateError):
+        archiver.import_job(tampered_tar, target_ws)
+
+    # Ensure no leftover staging directory under target_ws / .tmp
+    tmp_dir = target_ws / ".tmp"
+    if tmp_dir.exists():
+        assert list(tmp_dir.iterdir()) == []
