@@ -8,6 +8,7 @@ Supports baseline recording, post-optimization benchmarking, and comparison.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import platform
 import statistics
@@ -134,11 +135,11 @@ class BenchmarkSuite:
                     )
                 )
 
-                # 2. List jobs
+                # 2. List jobs (25 iterations for high statistical accuracy)
                 list_timings = time_repeat(
-                    lambda: mgr.list_jobs(include_finished=False),
+                    lambda m=mgr: m.list_jobs(include_finished=False),
                     warmup=2,
-                    iterations=10,
+                    iterations=25,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -162,9 +163,9 @@ class BenchmarkSuite:
                     ("nonexistent", nonexistent_id),
                 ]:
                     get_timings = time_repeat(
-                        lambda tid=target_id: mgr.get_job(tid),
+                        lambda tid=target_id, m=mgr: m.get_job(tid),
                         warmup=2,
-                        iterations=20,
+                        iterations=30,
                     )
                     self.results.append(
                         calculate_metrics(
@@ -177,9 +178,9 @@ class BenchmarkSuite:
 
                 # 4. Get job dir: mid
                 dir_timings = time_repeat(
-                    lambda: mgr.get_job_dir(mid_id),
+                    lambda m=mgr, jid=mid_id: m.get_job_dir(jid),
                     warmup=2,
-                    iterations=20,
+                    iterations=30,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -192,9 +193,11 @@ class BenchmarkSuite:
 
                 # 5. Update job status
                 update_timings = time_repeat(
-                    lambda: mgr.update_job_status(mid_id, "IN_PROGRESS", note="Bench update"),
+                    lambda m=mgr, jid=mid_id: m.update_job_status(
+                        jid, "IN_PROGRESS", note="Bench update"
+                    ),
                     warmup=1,
-                    iterations=5,
+                    iterations=10,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -207,7 +210,7 @@ class BenchmarkSuite:
 
                 # 6. Archive job
                 archive_timings = time_repeat(
-                    lambda: mgr.archive_job(last_id),
+                    lambda m=mgr, jid=last_id: m.archive_job(jid),
                     warmup=0,
                     iterations=1,
                 )
@@ -259,8 +262,8 @@ class BenchmarkSuite:
 
                 # Measure append on an already-populated history
                 tail_append_timings = time_repeat(
-                    lambda: mgr.record_event(
-                        job_dir, "JOB-001", "tail_event", metadata={"bench": True}
+                    lambda m=mgr, jd=job_dir: m.record_event(
+                        jd, "JOB-001", "tail_event", metadata={"bench": True}
                     ),
                     warmup=1,
                     iterations=10,
@@ -276,9 +279,9 @@ class BenchmarkSuite:
 
                 # Measure reading full event log
                 read_timings = time_repeat(
-                    lambda: mgr.list_events(job_dir),
+                    lambda m=mgr, jd=job_dir: m.list_events(jd),
                     warmup=2,
-                    iterations=10,
+                    iterations=25,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -322,9 +325,9 @@ class BenchmarkSuite:
                 )
 
                 # Tail start & stop
-                def start_stop_once() -> None:
-                    timer.start_timer(job_dir, "JOB-001", activity="Bench task")
-                    timer.stop_timer(job_dir, "JOB-001", note="Bench stop")
+                def start_stop_once(t=timer, jd=job_dir) -> None:
+                    t.start_timer(jd, "JOB-001", activity="Bench task")
+                    t.stop_timer(jd, "JOB-001", note="Bench stop")
 
                 tail_cycle_timings = time_repeat(start_stop_once, warmup=1, iterations=10)
                 self.results.append(
@@ -338,9 +341,9 @@ class BenchmarkSuite:
 
                 # Read full time log
                 log_read_timings = time_repeat(
-                    lambda: timer.get_time_log(job_dir, "JOB-001"),
+                    lambda t=timer, jd=job_dir: t.get_time_log(jd, "JOB-001"),
                     warmup=2,
-                    iterations=20,
+                    iterations=25,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -399,9 +402,9 @@ class BenchmarkSuite:
                 )
 
                 list_timings = time_repeat(
-                    lambda: list_work_sessions(job_dir),
+                    lambda jd=job_dir: list_work_sessions(jd),
                     warmup=2,
-                    iterations=10,
+                    iterations=25,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -414,9 +417,9 @@ class BenchmarkSuite:
 
                 target_id = saved_ids[len(saved_ids) // 2]
                 find_timings = time_repeat(
-                    lambda: find_work_session(root, target_id),
+                    lambda r=root, tid=target_id: find_work_session(r, tid),
                     warmup=2,
-                    iterations=15,
+                    iterations=25,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -428,9 +431,9 @@ class BenchmarkSuite:
                 )
 
                 next_id_timings = time_repeat(
-                    lambda: next_work_id(root),
+                    lambda r=root: next_work_id(r),
                     warmup=2,
-                    iterations=15,
+                    iterations=25,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -487,9 +490,9 @@ class BenchmarkSuite:
                 )
 
                 next_bug_timings = time_repeat(
-                    lambda: bug_proc.next_bug_id(job_dir),
+                    lambda bp=bug_proc, jd=job_dir: bp.next_bug_id(jd),
                     warmup=2,
-                    iterations=15,
+                    iterations=25,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -501,9 +504,9 @@ class BenchmarkSuite:
                 )
 
                 list_bugs_timings = time_repeat(
-                    lambda: bug_proc.list_bugs(job_dir),
+                    lambda bp=bug_proc, jd=job_dir: bp.list_bugs(jd),
                     warmup=2,
-                    iterations=10,
+                    iterations=25,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -516,9 +519,9 @@ class BenchmarkSuite:
 
                 mid_bid = bug_ids[len(bug_ids) // 2]
                 load_bug_timings = time_repeat(
-                    lambda: bug_proc.load_bug(job_dir, mid_bid),
+                    lambda bp=bug_proc, jd=job_dir, bid=mid_bid: bp.load_bug(jd, bid),
                     warmup=2,
-                    iterations=20,
+                    iterations=30,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -555,9 +558,9 @@ class BenchmarkSuite:
                 )
 
                 next_change_timings = time_repeat(
-                    lambda: scope_det.next_change_id(job_dir),
+                    lambda sd=scope_det, jd=job_dir: sd.next_change_id(jd),
                     warmup=2,
-                    iterations=15,
+                    iterations=25,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -569,9 +572,9 @@ class BenchmarkSuite:
                 )
 
                 list_changes_timings = time_repeat(
-                    lambda: scope_det.list_changes(job_dir),
+                    lambda sd=scope_det, jd=job_dir: sd.list_changes(jd),
                     warmup=2,
-                    iterations=10,
+                    iterations=25,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -584,9 +587,9 @@ class BenchmarkSuite:
 
                 mid_cid = change_ids[len(change_ids) // 2]
                 load_change_timings = time_repeat(
-                    lambda: scope_det.load_change(job_dir, mid_cid),
+                    lambda sd=scope_det, jd=job_dir, cid=mid_cid: sd.load_change(jd, cid),
                     warmup=2,
-                    iterations=20,
+                    iterations=30,
                 )
                 self.results.append(
                     calculate_metrics(
@@ -667,7 +670,10 @@ class BenchmarkSuite:
                             "jsonrpc": "2.0",
                             "id": 4,
                             "method": "tools/call",
-                            "params": {"name": "get_job_status", "arguments": {"job_id": "JOB-001"}},
+                            "params": {
+                                "name": "get_job_status",
+                                "arguments": {"job_id": "JOB-001"},
+                            },
                         },
                     ),
                     (
@@ -676,7 +682,10 @@ class BenchmarkSuite:
                             "jsonrpc": "2.0",
                             "id": 5,
                             "method": "tools/call",
-                            "params": {"name": "get_timeline", "arguments": {"job_id": "JOB-001"}},
+                            "params": {
+                                "name": "get_timeline",
+                                "arguments": {"job_id": "JOB-001"},
+                            },
                         },
                     ),
                     (
@@ -685,7 +694,10 @@ class BenchmarkSuite:
                             "jsonrpc": "2.0",
                             "id": 6,
                             "method": "tools/call",
-                            "params": {"name": "get_work_sessions", "arguments": {"job_id": "JOB-001"}},
+                            "params": {
+                                "name": "get_work_sessions",
+                                "arguments": {"job_id": "JOB-001"},
+                            },
                         },
                     ),
                     (
@@ -694,16 +706,19 @@ class BenchmarkSuite:
                             "jsonrpc": "2.0",
                             "id": 7,
                             "method": "tools/call",
-                            "params": {"name": "get_profitability", "arguments": {"job_id": "JOB-001"}},
+                            "params": {
+                                "name": "get_profitability",
+                                "arguments": {"job_id": "JOB-001"},
+                            },
                         },
                     ),
                 ]
 
                 for scenario, msg in calls:
                     timings = time_repeat(
-                        lambda m=msg: server.handle(m),
+                        lambda s=server, m=msg: s.handle(m),
                         warmup=3,
-                        iterations=20,
+                        iterations=25,
                     )
                     self.results.append(
                         calculate_metrics(
@@ -722,11 +737,15 @@ class BenchmarkSuite:
         from freelance_cli.models.job import Job
         from packages.archive.manager import ArchiveManager
 
-        datasets = [
-            ("small_1MB", 10, 100 * 1024),      # ~1 MB
-            ("medium_10MB", 20, 500 * 1024),   # ~10 MB
-            ("large_30MB", 30, 1024 * 1024),   # ~30 MB (practical & safe)
-        ] if not self.quick else [("small_1MB", 5, 200 * 1024)]
+        datasets = (
+            [
+                ("small_1MB", 10, 100 * 1024),  # ~1 MB
+                ("medium_10MB", 20, 500 * 1024),  # ~10 MB
+                ("large_30MB", 30, 1024 * 1024),  # ~30 MB
+            ]
+            if not self.quick
+            else [("small_1MB", 5, 200 * 1024)]
+        )
 
         for label, file_count, file_size in datasets:
             with tempfile.TemporaryDirectory() as tmp:
@@ -751,7 +770,9 @@ class BenchmarkSuite:
 
                 # 1. Export
                 export_timings = time_repeat(
-                    lambda: archive_mgr.export_job(job, job_dir, output_archive=archive_path),
+                    lambda am=archive_mgr, j=job, jd=job_dir, ap=archive_path: am.export_job(
+                        j, jd, output_archive=ap
+                    ),
                     warmup=1,
                     iterations=5,
                 )
@@ -766,7 +787,7 @@ class BenchmarkSuite:
 
                 # 2. Validate
                 validate_timings = time_repeat(
-                    lambda: archive_mgr.validate_archive(archive_path),
+                    lambda am=archive_mgr, ap=archive_path: am.validate_archive(ap),
                     warmup=1,
                     iterations=5,
                 )
@@ -780,9 +801,9 @@ class BenchmarkSuite:
                 )
 
                 # 3. Import
-                def do_import() -> None:
-                    import_root = root / f"import_ws_{time.perf_counter_ns()}"
-                    archive_mgr.import_job(archive_path, import_root, force=True)
+                def do_import(am=archive_mgr, ap=archive_path, r=root) -> None:
+                    import_root = r / f"import_ws_{time.perf_counter_ns()}"
+                    am.import_job(ap, import_root, force=True)
 
                 import_timings = time_repeat(
                     do_import,
@@ -825,10 +846,10 @@ class BenchmarkSuite:
                 packager = HandoffPackager()
 
                 pkg_timings = time_repeat(
-                    lambda: packager.create_package(
-                        job,
-                        project_dir,
-                        output_dir,
+                    lambda p=packager, j=job, pd=project_dir, od=output_dir: p.create_package(
+                        j,
+                        pd,
+                        od,
                         create_archive=True,
                     ),
                     warmup=1,
@@ -845,7 +866,7 @@ class BenchmarkSuite:
 
                 zip_dest = root / "release.zip"
                 zip_timings = time_repeat(
-                    lambda: packager._build_release_zip(project_dir, zip_dest),
+                    lambda p=packager, pd=project_dir, zd=zip_dest: p._build_release_zip(pd, zd),
                     warmup=1,
                     iterations=5,
                 )
@@ -875,13 +896,13 @@ class BenchmarkSuite:
         for label, args in commands:
             cmd = [python_exe] + args
             t0 = time.perf_counter()
-            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            subprocess.run(cmd, capture_output=True, text=True)
             cold_sec = time.perf_counter() - t0
 
             warm_timings: list[float] = [cold_sec]
             for _ in range(5):
                 t0 = time.perf_counter()
-                subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                subprocess.run(cmd, capture_output=True, text=True)
                 t1 = time.perf_counter()
                 warm_timings.append(t1 - t0)
 
@@ -895,35 +916,32 @@ class BenchmarkSuite:
             )
 
         import_cmd = [python_exe, "-X", "importtime", "-m", "freelance_cli", "--version"]
-        res = subprocess.run(import_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        res = subprocess.run(import_cmd, capture_output=True, text=True)
         lines = res.stderr.splitlines()
         cli_import_us = 0
-        for line in reversed(lines):
-            if "freelance_cli.cli" in line or "freelance_cli" in line:
+        for line in lines:
+            if "freelance_cli" in line:
                 parts = line.split("|")
                 if len(parts) >= 2:
-                    try:
+                    with contextlib.suppress(ValueError):
                         cli_import_us = int(parts[1].strip())
                         break
-                    except ValueError:
-                        pass
 
-        cli_import_ms = round(cli_import_us / 1000.0, 3)
         self.results.append(
             MetricResult(
                 scenario="cli:importtime_total",
                 scale="importtime",
                 iterations=1,
-                median_ms=cli_import_ms,
-                p95_ms=cli_import_ms,
-                min_ms=cli_import_ms,
-                max_ms=cli_import_ms,
+                median_ms=round(cli_import_us / 1000.0, 2),
+                p95_ms=round(cli_import_us / 1000.0, 2),
+                min_ms=round(cli_import_us / 1000.0, 2),
+                max_ms=round(cli_import_us / 1000.0, 2),
                 ops_per_sec=None,
-                extra={"raw_us": cli_import_us},
             )
         )
 
     def run_all(self) -> list[MetricResult]:
+        self.results.clear()
         self.bench_workspace_jobs()
         self.bench_timeline()
         self.bench_timer()
@@ -938,12 +956,12 @@ class BenchmarkSuite:
 
 def get_system_metadata() -> dict[str, Any]:
     commit_sha = "unknown"
-    try:
-        commit_sha = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
-        ).decode().strip()
-    except Exception:
-        pass
+    with contextlib.suppress(Exception):
+        commit_sha = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
+            .decode()
+            .strip()
+        )
 
     return {
         "timestamp": datetime.now().astimezone().isoformat(),
@@ -968,6 +986,10 @@ def save_report(
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    header_cols = (
+        "| Scenario | Scale | Iterations | Median (ms) | p95 (ms) | Min (ms) | Max (ms) | Ops/sec |"
+    )
+    separator_cols = "|---|---|---|---|---|---|---|---|"
     md_lines = [
         f"# {title}",
         "",
@@ -977,14 +999,17 @@ def save_report(
         f"**OS:** {meta['os']}  ",
         f"**CPU:** {meta['cpu']}  ",
         "",
-        "| Scenario | Scale | Iterations | Median (ms) | p95 (ms) | Min (ms) | Max (ms) | Ops/sec |",
-        "|---|---|---|---|---|---|---|---|",
+        header_cols,
+        separator_cols,
     ]
     for r in results:
         ops_str = f"{r.ops_per_sec:,.1f}" if r.ops_per_sec is not None else "-"
-        md_lines.append(
-            f"| `{r.scenario}` | {r.scale} | {r.iterations} | {r.median_ms:.2f} | {r.p95_ms:.2f} | {r.min_ms:.2f} | {r.max_ms:.2f} | {ops_str} |"
+        row = (
+            f"| `{r.scenario}` | {r.scale} | {r.iterations} | "
+            f"{r.median_ms:.2f} | {r.p95_ms:.2f} | {r.min_ms:.2f} | "
+            f"{r.max_ms:.2f} | {ops_str} |"
         )
+        md_lines.append(row)
     md_lines.append("")
 
     md_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1006,15 +1031,16 @@ def generate_comparison(
     base_map = {(r["scenario"], str(r["scale"])): r for r in base_data["results"]}
     opt_map = {(r["scenario"], str(r["scale"])): r for r in opt_data["results"]}
 
-    lines = [
-        "# Performance Comparison: Baseline vs. Optimized (Pure Python)",
-        "",
-        f"**Baseline Commit:** `{base_data['metadata']['commit_sha']}`  ",
-        f"**Optimized Commit:** `{opt_data['metadata']['commit_sha']}`  ",
-        f"**Environment:** {base_data['metadata']['python_version']} on {base_data['metadata']['os']}  ",
-        "",
-        "| Scenario | Scale | Baseline Med (ms) | Optimized Med (ms) | Diff (%) | Speedup | Base p95 (ms) | Opt p95 (ms) |",
-        "|---|---|---|---|---|---|---|---|",
+    env_desc = f"{base_data['metadata']['python_version']} on {base_data['metadata']['os']}"
+    header_cols = (
+        "| Scenario | Scale | Baseline Med (ms) | Optimized Med (ms) | "
+        "Diff (%) | Speedup | Base p95 (ms) | Opt p95 (ms) |"
+    )
+    separator_cols = "|---|---|---|---|---|---|---|---|"
+
+    table_rows = [
+        header_cols,
+        separator_cols,
     ]
 
     improvements: list[float] = []
@@ -1046,19 +1072,58 @@ def generate_comparison(
         diff_str = f"{sign}{diff_pct:.1f}%"
         speedup_str = f"{speedup:.2f}x" if speedup >= 1.0 else f"{speedup:.2f}x (slower)"
 
-        lines.append(
-            f"| `{scenario}` | {scale} | {b_med:.2f} | {o_med:.2f} | **{diff_str}** | **{speedup_str}** | {b_p95:.2f} | {o_p95:.2f} |"
+        row = (
+            f"| `{scenario}` | {scale} | {b_med:.2f} | {o_med:.2f} | "
+            f"**{diff_str}** | **{speedup_str}** | {b_p95:.2f} | {o_p95:.2f} |"
         )
+        table_rows.append(row)
 
-    lines.append("")
-    lines.append("## Summary Statistics")
-    if improvements:
-        med_imp = statistics.median(improvements)
-        best_speedup = max(speedups) if speedups else 1.0
-        lines.append(f"- **Median Latency Change:** {med_imp:+.1f}%")
-        lines.append(f"- **Peak Speedup:** {best_speedup:.2f}x")
-    lines.append("")
+    med_imp = statistics.median(improvements) if improvements else 0.0
+    best_speedup = max(speedups) if speedups else 1.0
 
+    table_section = "\n".join(table_rows)
+
+    # Check if existing COMPARISON.md has narrative sections to preserve
+    existing_text = ""
+    if comparison_md.exists():
+        existing_text = comparison_md.read_text(encoding="utf-8")
+
+    if "## 1. Podsumowanie zmian" in existing_text and "## 3. Profiling" in existing_text:
+        # Update Section 2 in-place
+        sec2_idx = existing_text.find("## 2. Tabela porównawcza: Baseline vs. Optimized")
+        sec3_idx = existing_text.find("## 3. Profiling Breakdown")
+
+        if sec2_idx != -1 and sec3_idx != -1:
+            header_and_sec1 = existing_text[:sec2_idx]
+            sec3_and_rest = existing_text[sec3_idx:]
+            new_sec2 = (
+                "## 2. Tabela porównawcza: Baseline vs. Optimized\n\n"
+                f"{table_section}\n\n"
+                "### Podsumowanie statystyczne:\n"
+                f"- **Mediana zmiany opóźnień (wszystkie {len(improvements)} scenariuszy):** "
+                f"**{med_imp:+.1f}%**\n"
+                f"- **Maksymalne przyspieszenie punktowe:** **{best_speedup:.2f}x**\n\n"
+            )
+            full_content = header_and_sec1 + new_sec2 + sec3_and_rest
+            comparison_md.write_text(full_content, encoding="utf-8")
+            print(f"Comparison report updated in {comparison_md}")
+            return
+
+    # Fallback to standard full comparison document
+    lines = [
+        "# Performance Comparison: Baseline vs. Optimized (Pure Python)",
+        "",
+        f"**Baseline Commit:** `{base_data['metadata']['commit_sha']}`  ",
+        f"**Optimized Commit:** `{opt_data['metadata']['commit_sha']}`  ",
+        f"**Environment:** {env_desc}  ",
+        "",
+        table_section,
+        "",
+        "## Summary Statistics",
+        f"- **Median Latency Change:** {med_imp:+.1f}%",
+        f"- **Peak Speedup:** {best_speedup:.2f}x",
+        "",
+    ]
     comparison_md.parent.mkdir(parents=True, exist_ok=True)
     comparison_md.write_text("\n".join(lines), encoding="utf-8")
     print(f"Comparison report written to {comparison_md}")
@@ -1067,9 +1132,13 @@ def generate_comparison(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Freelance Dev Suite Performance Benchmarks")
     parser.add_argument("--baseline", action="store_true", help="Record baseline benchmark")
-    parser.add_argument("--optimized", action="store_true", help="Record post-optimization benchmark")
+    parser.add_argument(
+        "--optimized", action="store_true", help="Record post-optimization benchmark"
+    )
     parser.add_argument("--compare", action="store_true", help="Generate comparison report")
-    parser.add_argument("--quick", action="store_true", help="Run with reduced scales for quick check")
+    parser.add_argument(
+        "--quick", action="store_true", help="Run with reduced scales for quick check"
+    )
     args = parser.parse_args()
 
     bench_dir = Path("benchmarks")
@@ -1100,7 +1169,9 @@ def main() -> None:
             bench_dir / "OPTIMIZED.md",
             title="Performance Optimized (Post-Optimization)",
         )
-        print("Optimized benchmark recorded to benchmarks/optimized.json and benchmarks/OPTIMIZED.md")
+        print(
+            "Optimized benchmark recorded to benchmarks/optimized.json and benchmarks/OPTIMIZED.md"
+        )
         generate_comparison(
             bench_dir / "baseline.json",
             bench_dir / "optimized.json",
