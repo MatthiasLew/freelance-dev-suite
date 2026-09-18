@@ -20,6 +20,7 @@ from packages.timeline.manager import TimelineManager
 from packages.tracking.profitability import ProfitabilityCalculator
 from packages.work.storage import list_work_sessions
 from packages.workspace.manager import WorkspaceManager
+from packages.workspace.storage import load_job
 
 MCP_PROTOCOL_VERSION = "2025-06-18"
 SERVER_NAME = "freelance-dev-suite"
@@ -276,9 +277,13 @@ class FreelanceMcpServer:
 
     def _tool_get_job_status(self, args: JsonObject) -> JsonObject:
         job_id, job_dir = self._get_safe_job_dir(args.get("job_id"))
-        job = self.manager.get_job(job_id)
-        if not job:
+        job_file = job_dir / "job.json"
+        if not job_file.exists():
             raise ToolInputError(f"Job {job_id} not found")
+        try:
+            job = load_job(job_file)
+        except Exception as exc:
+            raise ToolInputError(f"Job {job_id} could not be loaded: {exc}") from exc
         return {"job": job.to_dict(), "workspace_dir": job_dir.name}
 
     def _tool_get_requirements(self, args: JsonObject) -> JsonObject:
