@@ -179,6 +179,17 @@ class TestStorage:
         found_dir = find_job_dir("JOB-001", tmp_workspace)
         assert found_dir == saved_dir
 
+    def test_find_job_entry(self, sample_job: Job, tmp_workspace: Path) -> None:
+        from packages.workspace.storage import find_job_entry
+
+        saved_dir = save_job(sample_job, tmp_workspace)
+        entry = find_job_entry("JOB-001", tmp_workspace)
+        assert entry is not None
+        job, path = entry
+        assert job.id == "JOB-001"
+        assert path == saved_dir
+        assert find_job_entry("JOB-999", tmp_workspace) is None
+
 
 # ──────────────────── Manager tests ─────────────────────────────────
 
@@ -310,6 +321,53 @@ class TestWorkspaceManager:
 
         assert created.id == "JOB-002"
         assert len(recovered.list_jobs(include_finished=True)) == 2
+
+    def test_monotonic_job_id_with_stale_counter_and_higher_existing_job(
+        self, tmp_workspace: Path, tmp_path: Path
+    ) -> None:
+        """When counter is 0 but JOB-100 exists without JOB-001, next must be JOB-101."""
+        existing_dir = tmp_workspace / "active" / "JOB-100-client-task"
+        existing_dir.mkdir(parents=True)
+        job100 = Job(id="JOB-100", client="ExistingClient", description="Existing Task")
+        save_job(job100, tmp_workspace, job_dir=existing_dir)
+
+        # Stale config with counter=0 and no JOB-001 on disk
+        config = Config(workspace_root=str(tmp_workspace), job_counter=0)
+        config_path = tmp_path / "stale_config.yaml"
+        save_config(config, config_path)
+
+        manager = WorkspaceManager(config=config, config_path=config_path)
+        new_job = manager.create_job(client="NewClient", description="New Task")
+
+        assert new_job.id == "JOB-101"
+        assert not (tmp_workspace / "active" / "JOB-001").exists()
+
+        # Sequential creation continues monotonically
+        next_job = manager.create_job(client="ThirdClient", description="Third Task")
+        assert next_job.id == "JOB-102"
+
+    def test_save_job_self_healing_subdirectories(self, tmp_workspace: Path) -> None:
+        """save_job restores deleted or missing standard subdirectories without error."""
+        import shutil
+
+        job = Job(id="JOB-050", client="HealingCo", description="Self Healing Test")
+        job_dir = save_job(job, tmp_workspace)
+
+        # Standard subdirs must exist
+        assert (job_dir / "work" / "bugs").is_dir()
+        assert (job_dir / "handoff").is_dir()
+        assert (job_dir / "client").is_dir()
+
+        # Simulate missing / deleted subdirectories in legacy or imported job
+        shutil.rmtree(job_dir / "work" / "bugs")
+        shutil.rmtree(job_dir / "handoff")
+        assert not (job_dir / "work" / "bugs").exists()
+        assert not (job_dir / "handoff").exists()
+
+        # Re-save job: must self-heal and recreate missing directories
+        save_job(job, tmp_workspace, job_dir=job_dir)
+        assert (job_dir / "work" / "bugs").is_dir()
+        assert (job_dir / "handoff").is_dir()
 
 
 # ──────────────────── Config tests ──────────────────────────────────

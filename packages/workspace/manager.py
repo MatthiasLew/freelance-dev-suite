@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import re
+import os
 from pathlib import Path
 
 from freelance_cli.config import Config, load_config, save_config
@@ -14,8 +14,30 @@ from packages.workspace.storage import (
     find_all_jobs,
     find_job_by_id,
     find_job_dir,
+    find_job_entry,
     save_job,
 )
+
+
+def _scan_highest_job_id(workspace_path: Path) -> int:
+    """Find the highest existing numeric job suffix across active/ and finished/ directories."""
+    highest = 0
+    for parent_dir_name in ("active", "finished"):
+        parent_dir = workspace_path / parent_dir_name
+        if not parent_dir.exists():
+            continue
+        try:
+            with os.scandir(parent_dir) as entries:
+                for entry in entries:
+                    if entry.is_dir() and entry.name.startswith("JOB-"):
+                        num_part = entry.name[4:].split("-", 1)[0]
+                        if num_part.isdigit():
+                            val = int(num_part)
+                            if val > highest:
+                                highest = val
+        except OSError:
+            pass
+    return highest
 
 
 class WorkspaceManager:
@@ -28,6 +50,7 @@ class WorkspaceManager:
         # ~/.freelance/config.yaml would be an unexpected global side effect.
         self._persist_config = config is None or config_path is not None
         self.config = config or load_config(config_path)
+        self._high_watermark: int | None = None
         self._ensure_workspace()
 
     def _ensure_workspace(self) -> None:
@@ -52,19 +75,31 @@ class WorkspaceManager:
             if self.config_path and self.config_path.exists():
                 self.config = load_config(self.config_path)
 
-            highest = self.config.job_counter
-            for parent_dir in (
-                self.config.workspace_path / "active",
-                self.config.workspace_path / "finished",
-            ):
-                if parent_dir.exists():
-                    for p in parent_dir.iterdir():
-                        match = re.match(r"^JOB-(\d+)", p.name)
-                        if match:
-                            highest = max(highest, int(match.group(1)))
+            # Lazy synchronization on first job creation or if external config increased counter
+            if self._high_watermark is None:
+                self._high_watermark = max(
+                    self.config.job_counter,
+                    _scan_highest_job_id(self.config.workspace_path),
+                )
+            elif self.config.job_counter > self._high_watermark:
+                self._high_watermark = self.config.job_counter
 
-            self.config.job_counter = highest + 1
-            job_id = f"JOB-{self.config.job_counter:03d}"
+            candidate = self._high_watermark + 1
+            candidate_id = f"JOB-{candidate:03d}"
+            conflict_dir = find_job_dir(candidate_id, self.config.workspace_path)
+            if conflict_dir is not None:
+                # Unexpected external modification / unmanifested directory
+                self._high_watermark = max(
+                    candidate,
+                    _scan_highest_job_id(self.config.workspace_path),
+                )
+                candidate = self._high_watermark + 1
+                candidate_id = f"JOB-{candidate:03d}"
+
+            self._high_watermark = candidate
+            self.config.job_counter = candidate
+            job_id = candidate_id
+
             job = Job(
                 id=job_id,
                 client=client,
@@ -76,15 +111,13 @@ class WorkspaceManager:
                 repository=repository,
                 notes=notes,
             )
-            save_job(job, self.config.workspace_path)
-            job_dir = self.get_job_dir(job_id)
-            if job_dir:
-                TimelineManager().record_event(
-                    job_dir,
-                    job_id,
-                    "job_created",
-                    metadata={"client": client, "source": source},
-                )
+            job_dir = save_job(job, self.config.workspace_path)
+            TimelineManager().record_event(
+                job_dir,
+                job_id,
+                "job_created",
+                metadata={"client": client, "source": source},
+            )
             if self._persist_config:
                 save_config(self.config, self.config_path)
         return job
@@ -103,11 +136,12 @@ class WorkspaceManager:
 
     def update_job_status(self, job_id: str, new_status: str, note: str = "") -> Job | None:
         """Update a job's status."""
-        job = find_job_by_id(job_id, self.config.workspace_path)
-        if job is None:
+        entry = find_job_entry(job_id, self.config.workspace_path)
+        if entry is None:
             return None
+        job, job_dir = entry
         job.change_status(new_status, note)
-        save_job(job, self.config.workspace_path)
+        save_job(job, self.config.workspace_path, job_dir=job_dir)
         return job
 
     def get_job_dir(self, job_id: str) -> Path | None:

@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
 from freelance_cli.output import emit_json, exit_with_error
-from packages.archive.manager import ArchiveManager
-from packages.workspace.manager import WorkspaceManager
+
+if TYPE_CHECKING:
+    from packages.workspace.manager import WorkspaceManager
 
 
 def register_archive_commands(
@@ -44,6 +46,8 @@ def register_archive_commands(
             )
             return
 
+        from packages.archive.manager import ArchiveManager
+
         archiver = ArchiveManager()
         archive_file = archiver.export_job(found_job, job_dir, output_archive=output_path)
 
@@ -71,6 +75,8 @@ def register_archive_commands(
     def import_job(archive_file: Path, force: bool, json_output: bool) -> None:
         """Safely import a job archive into the current workspace."""
         manager = manager_factory()
+        from packages.archive.manager import ArchiveManager
+
         archiver = ArchiveManager()
 
         try:

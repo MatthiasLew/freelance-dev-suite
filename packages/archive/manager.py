@@ -39,7 +39,7 @@ IGNORED_ARCHIVE_NAMES = {
 def _sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
-        while chunk := f.read(65536):
+        while chunk := f.read(131072):
             h.update(chunk)
     return h.hexdigest()
 
@@ -60,27 +60,28 @@ class ArchiveManager:
             dest = output_archive
         dest.parent.mkdir(parents=True, exist_ok=True)
 
+        dest_canonical = dest.resolve()
+        dotenv_templates = {".env.example", ".env.sample", ".env.template"}
+
         files_to_pack: list[tuple[Path, str]] = []
         checksums: dict[str, str] = {}
 
-        for file_path in job_dir.rglob("*"):
-            if file_path.is_symlink() or not file_path.is_file():
-                continue
-            rel = file_path.relative_to(job_dir)
-            if any(part in IGNORED_ARCHIVE_NAMES for part in rel.parts):
-                continue
-            if file_path.name.startswith(".env") and file_path.name not in {
-                ".env.example",
-                ".env.sample",
-                ".env.template",
-            }:
-                continue
-            if dest.resolve() == file_path.resolve():
-                continue
+        for root_dir, dirnames, filenames in os.walk(job_dir):
+            dirnames[:] = [d for d in dirnames if d not in IGNORED_ARCHIVE_NAMES]
 
-            rel_str = str(rel).replace("\\", "/")
-            files_to_pack.append((file_path, rel_str))
-            checksums[rel_str] = _sha256_file(file_path)
+            for fname in filenames:
+                file_path = Path(root_dir) / fname
+                if file_path.is_symlink() or not file_path.is_file():
+                    continue
+                if fname.startswith(".env") and fname not in dotenv_templates:
+                    continue
+                if file_path.resolve() == dest_canonical:
+                    continue
+
+                rel = file_path.relative_to(job_dir)
+                rel_str = str(rel).replace("\\", "/")
+                files_to_pack.append((file_path, rel_str))
+                checksums[rel_str] = _sha256_file(file_path)
 
         manifest: dict[str, Any] = {
             "export_version": EXPORT_VERSION,
@@ -244,8 +245,13 @@ class ArchiveManager:
                     if extracted_f is None:
                         raise CorruptedStateError(f"Failed to extract member '{member.name}'")
 
-                    dest_file.write_bytes(extracted_f.read())
-                    actual_sha = _sha256_file(dest_file)
+                    hasher = hashlib.sha256()
+                    with open(dest_file, "wb") as out_f:
+                        while chunk := extracted_f.read(131072):
+                            hasher.update(chunk)
+                            out_f.write(chunk)
+
+                    actual_sha = hasher.hexdigest()
                     if actual_sha != checksums.get(rel_name):
                         raise CorruptedStateError(
                             f"Checksum mismatch for {rel_name}: "

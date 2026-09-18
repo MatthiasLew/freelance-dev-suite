@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
@@ -24,17 +25,20 @@ from freelance_cli.history_commands import register_history_commands
 from freelance_cli.job_commands import register_job_commands
 from freelance_cli.mcp_commands import register_mcp_commands
 from freelance_cli.output import emit_json, exit_with_error
+
+if TYPE_CHECKING:
+    from packages.workspace.manager import WorkspaceManager
+
 from freelance_cli.requirements_commands import register_requirements_command
 from freelance_cli.scope_commands import register_scope_commands
 from freelance_cli.tracking_commands import register_tracking_commands
 from freelance_cli.work_commands import work
-from packages.storage_utils import StateError, atomic_write_json, safe_read_json
-from packages.timeline.manager import TimelineManager
-from packages.workspace.manager import WorkspaceManager
 
 
 def _get_manager() -> WorkspaceManager:
     """Create a WorkspaceManager with default config."""
+    from packages.workspace.manager import WorkspaceManager
+
     return WorkspaceManager()
 
 
@@ -150,6 +154,9 @@ def analyze(job_id: str, check_mode: str, json_output: bool) -> None:
     if job_dir:
         analysis_dir = job_dir / "analysis"
         analysis_dir.mkdir(parents=True, exist_ok=True)
+        from packages.storage_utils import atomic_write_json
+        from packages.timeline.manager import TimelineManager
+
         atomic_write_json(analysis_dir / "intake.json", intake.to_dict())
         atomic_write_json(analysis_dir / "ai-cost.json", ai_cost.to_dict())
         TimelineManager().record_event(
@@ -209,6 +216,9 @@ def estimate(job_id: str, json_output: bool) -> None:
             json_mode=json_output,
         )
         return
+
+    from packages.storage_utils import StateError, atomic_write_json, safe_read_json
+    from packages.timeline.manager import TimelineManager
 
     try:
         intake_data = safe_read_json(intake_path)
@@ -468,6 +478,8 @@ def start_job(
     req_spec: RequirementsSpec | None = None
     req_json_path = job_dir / "analysis" / "requirements.json"
     if req_json_path.exists():
+        from packages.storage_utils import StateError, safe_read_json
+
         try:
             req_data = safe_read_json(req_json_path)
             req_spec = RequirementsSpec.from_dict(req_data)
@@ -545,6 +557,7 @@ def start_job(
     if found_job.status in {"LEAD", "ANALYSIS", "WAITING_FOR_CLIENT", "ACCEPTED"}:
         found_job.change_status("IN_PROGRESS", f"Bootstrapped with {template_name}")
 
+    from packages.timeline.manager import TimelineManager
     from packages.workspace.storage import save_job
 
     save_job(found_job, manager.config.workspace_path)

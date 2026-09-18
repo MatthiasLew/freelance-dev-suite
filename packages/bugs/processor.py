@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from packages.storage_utils import (
 )
 
 from .models import BugReport, BugSeverity, BugStatus
+
+_BUG_ID_FILE_PATTERN = re.compile(r"^BUG-(\d+)\.json$")
 
 
 class BugProcessor:
@@ -157,17 +160,23 @@ class BugProcessor:
                 return "BUG-001"
 
             highest = 0
-            for p in bugs_dir.glob("BUG-*.json"):
-                m = re.match(r"^BUG-(\d+)\.json$", p.name)
-                if m:
-                    highest = max(highest, int(m.group(1)))
+            try:
+                with os.scandir(bugs_dir) as entries:
+                    for p in entries:
+                        if p.is_file() and p.name.startswith("BUG-") and p.name.endswith(".json"):
+                            m = _BUG_ID_FILE_PATTERN.match(p.name)
+                            if m:
+                                highest = max(highest, int(m.group(1)))
+            except OSError:
+                pass
 
             return f"BUG-{highest + 1:03d}"
 
     def save_bug(self, bug: BugReport, job_dir: Path) -> dict[str, Path]:
         """Persist bug JSON, Markdown summary, questions doc, and reproduction script."""
         bugs_dir = job_dir / "work" / "bugs"
-        bugs_dir.mkdir(parents=True, exist_ok=True)
+        if not bugs_dir.exists():
+            bugs_dir.mkdir(parents=True, exist_ok=True)
 
         paths: dict[str, Path] = {}
 
@@ -215,9 +224,20 @@ class BugProcessor:
             return []
 
         bugs: list[BugReport] = []
-        for p in sorted(bugs_dir.glob("BUG-*.json")):
+        try:
+            with os.scandir(bugs_dir) as entries:
+                files = [
+                    e
+                    for e in entries
+                    if e.is_file() and e.name.startswith("BUG-") and e.name.endswith(".json")
+                ]
+        except OSError:
+            return []
+
+        files.sort(key=lambda e: e.name)
+        for p in files:
             try:
-                data = safe_read_json(p)
+                data = safe_read_json(Path(p.path))
                 bugs.append(BugReport.from_dict(data))
             except (OSError, StateError, ValueError, TypeError):
                 continue

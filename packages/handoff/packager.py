@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -243,23 +244,21 @@ Application behavior can be customized via `.env` file settings and command-line
 
     def _build_release_zip(self, project_dir: Path, zip_dest: Path) -> None:
         """Create clean zip file of project directory, skipping temp files and secrets."""
-        with zipfile.ZipFile(zip_dest, "w", zipfile.ZIP_DEFLATED) as zf:
-            for file_path in project_dir.rglob("*"):
-                # Never follow links into files outside the repository.  A
-                # release archive should contain regular project files only.
-                if file_path.is_symlink() or not file_path.is_file():
-                    continue
-                rel = file_path.relative_to(project_dir)
-                # Skip ignored folders
-                if any(part in IGNORED_DIRECTORIES for part in rel.parts):
-                    continue
-                # Skip dotenv files that may contain credentials, while
-                # retaining clearly marked templates for client setup.
-                dotenv_templates = {".env.example", ".env.sample", ".env.template"}
-                if file_path.name.startswith(".env") and file_path.name not in dotenv_templates:
-                    continue
-                # Skip zip if inside project_dir
-                if file_path.resolve() == zip_dest.resolve():
-                    continue
+        dest_canonical = zip_dest.resolve()
+        dotenv_templates = {".env.example", ".env.sample", ".env.template"}
 
-                zf.write(file_path, arcname=str(rel))
+        with zipfile.ZipFile(zip_dest, "w", zipfile.ZIP_DEFLATED) as zf:
+            for root_dir, dirnames, filenames in os.walk(project_dir):
+                dirnames[:] = [d for d in dirnames if d not in IGNORED_DIRECTORIES]
+
+                for fname in filenames:
+                    file_path = Path(root_dir) / fname
+                    if file_path.is_symlink() or not file_path.is_file():
+                        continue
+                    if fname.startswith(".env") and fname not in dotenv_templates:
+                        continue
+                    if file_path.resolve() == dest_canonical:
+                        continue
+
+                    rel = file_path.relative_to(project_dir)
+                    zf.write(file_path, arcname=str(rel))

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -289,17 +290,27 @@ Pozdrawiam!
                 return "CHANGE-001"
 
             highest = 0
-            for p in scope_dir.glob("CHANGE-*.json"):
-                m = re.match(r"^CHANGE-(\d+)\.json$", p.name)
-                if m:
-                    highest = max(highest, int(m.group(1)))
+            try:
+                with os.scandir(scope_dir) as entries:
+                    for p in entries:
+                        if (
+                            p.is_file()
+                            and p.name.startswith("CHANGE-")
+                            and p.name.endswith(".json")
+                        ):
+                            m = re.match(r"^CHANGE-(\d+)\.json$", p.name)
+                            if m:
+                                highest = max(highest, int(m.group(1)))
+            except OSError:
+                pass
 
             return f"CHANGE-{highest + 1:03d}"
 
     def save_change(self, item: ScopeChangeItem, job_dir: Path) -> dict[str, Path]:
         """Persist scope change analysis, proposal, and JSON data."""
         scope_dir = job_dir / "work" / "scope"
-        scope_dir.mkdir(parents=True, exist_ok=True)
+        if not scope_dir.exists():
+            scope_dir.mkdir(parents=True, exist_ok=True)
 
         paths: dict[str, Path] = {}
 
@@ -340,9 +351,20 @@ Pozdrawiam!
             return []
 
         changes: list[ScopeChangeItem] = []
-        for p in sorted(scope_dir.glob("CHANGE-*.json")):
+        try:
+            with os.scandir(scope_dir) as entries:
+                files = [
+                    e
+                    for e in entries
+                    if e.is_file() and e.name.startswith("CHANGE-") and e.name.endswith(".json")
+                ]
+        except OSError:
+            return []
+
+        files.sort(key=lambda e: e.name)
+        for p in files:
             try:
-                data = safe_read_json(p)
+                data = safe_read_json(Path(p.path))
                 changes.append(ScopeChangeItem.from_dict(data))
             except (OSError, StateError, ValueError, TypeError):
                 continue
@@ -352,7 +374,8 @@ Pozdrawiam!
     def create_snapshot(self, job_dir: Path, requirements_spec: RequirementsSpec) -> Path:
         """Save a frozen baseline snapshot of the current requirements spec."""
         snapshots_dir = job_dir / "analysis" / "snapshots"
-        snapshots_dir.mkdir(parents=True, exist_ok=True)
+        if not snapshots_dir.exists():
+            snapshots_dir.mkdir(parents=True, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         snapshot_file = snapshots_dir / f"requirements_baseline_{timestamp}.json"
