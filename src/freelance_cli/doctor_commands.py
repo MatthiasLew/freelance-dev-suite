@@ -35,7 +35,9 @@ def _parse_version(version_str: str) -> tuple[int, ...]:
     return tuple(parts) if parts else (0, 0, 0)
 
 
-def check_environment(manager: WorkspaceManager) -> dict[str, Any]:
+def check_environment(
+    manager: WorkspaceManager | None, workspace_error: OSError | None = None
+) -> dict[str, Any]:
     """Run diagnostics on environment, workspace, tools, and state schema."""
     checks: list[dict[str, Any]] = []
     issues: list[str] = []
@@ -54,19 +56,33 @@ def check_environment(manager: WorkspaceManager) -> dict[str, Any]:
         issues.append(f"Python version {py_ver} is unsupported. Python >=3.11 required.")
 
     # 2. Workspace root & write permissions
-    ws_path = manager.config.workspace_path
-    ws_exists = ws_path.exists()
-    ws_writable = os.access(ws_path, os.W_OK) if ws_exists else os.access(ws_path.parent, os.W_OK)
+    ws_path = manager.config.workspace_path if manager is not None else None
+    ws_exists = ws_path is not None and ws_path.exists()
+    ws_writable = (
+        (os.access(ws_path, os.W_OK) if ws_exists else os.access(ws_path.parent, os.W_OK))
+        if ws_path is not None
+        else False
+    )
+    workspace_details = f"{ws_path} (exists={ws_exists}, writable={ws_writable})"
+    if workspace_error is not None:
+        workspace_details = (
+            f"Cannot initialize/access workspace: {workspace_error}. "
+            "Check the configured workspace path and directory permissions."
+        )
     checks.append(
         {
             "name": "Workspace Directory",
             "status": "PASS"
-            if (ws_exists and ws_writable)
+            if (ws_exists and ws_writable and workspace_error is None)
+            else "FAIL"
+            if workspace_error is not None
             else ("WARN" if not ws_exists else "FAIL"),
-            "details": f"{ws_path} (exists={ws_exists}, writable={ws_writable})",
+            "details": workspace_details,
         }
     )
-    if not ws_writable:
+    if workspace_error is not None:
+        issues.append(workspace_details)
+    elif not ws_writable:
         issues.append(f"Workspace directory {ws_path} is not writable.")
 
     # 3. Git executable
@@ -120,9 +136,13 @@ def check_environment(manager: WorkspaceManager) -> dict[str, Any]:
     corrupted_jobs: list[str] = []
     incompatible_jobs: list[str] = []
     total_jobs = 0
-    active_dir = ws_path / "active"
-    if active_dir.exists():
-        for job_folder in active_dir.iterdir():
+    active_dir = ws_path / "active" if ws_path is not None else None
+    state_error: OSError | None = workspace_error
+    try:
+        job_folders = (
+            list(active_dir.iterdir()) if active_dir is not None and active_dir.exists() else []
+        )
+        for job_folder in job_folders:
             job_file = job_folder / "job.json"
             if job_file.exists():
                 total_jobs += 1
@@ -133,12 +153,18 @@ def check_environment(manager: WorkspaceManager) -> dict[str, Any]:
                         incompatible_jobs.append(job_folder.name)
                     else:
                         corrupted_jobs.append(job_folder.name)
+    except OSError as exc:
+        state_error = exc
+        issues.append(f"Cannot inspect workspace state: {exc}")
 
     state_status = "PASS"
     state_details = (
         f"{total_jobs} active job(s) verified (schema_version <= {CURRENT_STATE_SCHEMA_VERSION})"
     )
-    if corrupted_jobs or incompatible_jobs:
+    if state_error is not None:
+        state_status = "WARN"
+        state_details = f"State verification incomplete: workspace unavailable ({state_error})"
+    elif corrupted_jobs or incompatible_jobs:
         state_status = "FAIL"
         state_details = (
             f"Errors in jobs: corrupted={corrupted_jobs}, incompatible={incompatible_jobs}"
@@ -175,18 +201,23 @@ def register_doctor_command(
     @click.option("--json", "json_output", is_flag=True, help="Output structured JSON diagnostics.")
     def doctor(json_output: bool) -> None:
         """Verify environment, workspace permissions, ai-dev engine, and state schema."""
-        manager = manager_factory()
-        diag = check_environment(manager)
+        try:
+            manager = manager_factory()
+        except OSError as exc:
+            diag = check_environment(None, workspace_error=exc)
+        else:
+            diag = check_environment(manager)
+        exit_code = 1 if diag["overall_status"] == "UNHEALTHY" else 0
 
         if json_output:
             emit_json(
                 data=diag,
                 command="doctor",
                 status="success" if diag["overall_status"] != "UNHEALTHY" else "error",
-                exit_code=0 if diag["overall_status"] != "UNHEALTHY" else 1,
+                exit_code=exit_code,
                 errors=diag["issues"],
             )
-            return
+            sys.exit(exit_code)
 
         click.echo()
         click.secho(

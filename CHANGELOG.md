@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+- `doctor` now reports workspace initialization/access failures in text and JSON while retaining environment/tool diagnostics and marking unavailable state verification as incomplete (#4).
+- Unhealthy `doctor --json` results now exit with code 1, matching the JSON envelope.
 
 ## 0.2.1 — 2026-09-18
 
